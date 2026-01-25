@@ -1,0 +1,146 @@
+\documentclass[12pt, a4paper, oneside]{teza-upb_en}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\usepackage{babel}
+\usepackage{graphicx}
+\usepackage{babel}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage[
+  bookmarks,
+  bookmarksopen=true,
+  pdftitle={Dizertatie},
+  linktocpage]{hyperref}
+
+
+\singlespacing
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%cod colorat
+\usepackage{listings}
+\usepackage{color}
+ 
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+	language=Matlab,
+ %   backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+	basicstyle=\ttfamily\scriptsize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+ 
+\lstset{style=mystyle}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\author{Lupu Silviu-George}
+
+\title{Room Type Classification in Indoor Images Using Vision Transformers}
+
+\facultatea{Faculty of Electronics, Telecommunications and Information Technology}
+\tiplucrare{Dissertation Thesis}
+\domeniu{Electronics, Telecommunications and Information Technology}
+\catedra{Telecommunications}
+\campus{Leu}
+\program{Advanced Wireless Communications}
+\titlulobtinut{Master of Science}
+\director{Prof. Firstname Lastname}
+
+\submissionmonth{June}
+\submissionyear{2026}
+
+\beforepreface
+\listoffigures
+\listoftables
+\abbreviations{
+  ViT = Vision Transformer\\
+  CE  = Cross-Entropy\\
+  CL  = Center Loss\\
+  SSL = Semi-Supervised Learning\\
+  CM  = Confusion Matrix\\
+  mAP = mean Average Precision
+}
+\afterpreface
+
+\chapter{Introduction}
+\section{Motivation}
+% TODO: Explain why room classification matters (smart homes, indoor robotics, real-estate indexing).
+% TODO: Describe class ambiguity (e.g., living room vs. dining room, hall vs. living room).
+
+\section{Problem Statement}
+We address the problem of classifying an indoor image into one of six room categories:
+bathroom, kitchen, living room, bedroom, hall, and dining room.
+
+\section{Contributions}
+\begin{itemize}
+  \item Train and tune a transformer-based baseline for six-class room recognition.
+  \item Integrate Center Loss to improve embedding compactness and class separability.
+  \item Simulate a semi-supervised scenario using online pseudo-labeling of unlabeled images.
+  \item Evaluate using overall accuracy, confusion matrices, and embedding-space visualizations.
+\end{itemize}
+
+\chapter{Background and Related Work}
+\section{Vision Transformers for Image Classification}
+% TODO: Summarize ViT principles and why they are suitable for indoor scenes.
+
+\section{Metric Learning and Center Loss}
+% TODO: Explain Center Loss and its intended effect on embeddings.
+
+\section{Semi-Supervised Learning with Pseudo-Labels}
+% TODO: Describe pseudo-labeling, confidence thresholds, and noise control.
+
+\chapter{Dataset and Experimental Protocol}
+\section{Dataset Description}
+% TODO: Provide dataset name, size, class distribution, licensing, and download link.
+
+\section{Preprocessing and Augmentation}
+% TODO: Resize, normalization, augmentations, and rationale.
+
+\section{Splits and Reproducibility}
+% TODO: Train/val/test split strategy, seeds, and reproducible training setup.
+
+\chapter{Proposed Methodology}
+\section{Transformer Baseline}
+% TODO: Architecture choice (e.g., ViT/DeiT/Swin), initialization, optimizer, LR schedule.
+
+\section{Center Loss Integration}
+% TODO: Total loss: L = L_{CE} + \lambda L_{center}; how centers are updated; chosen \lambda.
+
+\section{Semi-Supervised Pipeline}
+% TODO: Online pseudo-labeling loop; confidence threshold; class balancing; stopping criteria.
+
+\chapter{Results and Discussion}
+\section{Quantitative Results}
+% TODO: Accuracy and per-class metrics.
+
+\section{Confusion Matrix Analysis}
+% TODO: Explain which classes are confused and why.
+
+\section{Embedding-Space Visualization}
+% TODO: t-SNE/UMAP plots; compare with/without Center Loss.
+
+\section{Ablation and Sensitivity}
+% TODO: Hyperparameters, \lambda, threshold, amount of labeled data.
+
+\chapter{Conclusions and Future Work}
+% TODO: Summarize findings; propose next steps.
+
+\bibliography{references}
+
+\end{document}

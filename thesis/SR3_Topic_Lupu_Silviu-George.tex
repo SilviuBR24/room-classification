@@ -1,0 +1,129 @@
+\documentclass[english]{teza-upb_en}
+
+% ---------- Language / Encoding ----------
+\usepackage[english]{babel}
+\usepackage{bookmark}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+% ---------- Math / Graphics / Links ----------
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{url}
+
+% ---------- Metadata (fill exactly) ----------
+\author{Lupu Silviu-George}
+\title{Room Type Classification in Indoor Images Using Vision Transformers}
+\facultatea{Faculty of Electronics, Telecommunications and Information Technology}
+\tiplucrare{Dissertation Thesis}
+\domeniu{Electronics, Telecommunications and Information Technology}
+\catedra{Telecommunications}
+\campus{Leu}
+\program{Advanced Wireless Communications}
+\titlulobtinut{Master of Science}
+\director{As. dr. ing. Andrei-Mircea RACOVIȚEANU}
+\submissionmonth{January}
+\submissionyear{2026}
+
+\begin{document}
+
+\beforepreface
+\tableofcontents
+\afterpreface
+
+\chapter{Research Topic Overview}
+
+\section{Problem Statement}
+The goal is to build an end-to-end indoor scene classification system that predicts the room category from a single RGB image, implemented in Python. Given an input image \(x \in \mathbb{R}^{256 \times 256 \times 3}\), the model outputs a probability distribution over six classes \(\mathcal{C}\) and the final decision is obtained via \(\arg\max\). The classes are derived by filtering a subset of the public Places365 dataset to the following indoor scene categories: \emph{bathroom}, \emph{bedroom}, \emph{dining room}, \emph{kitchen}, \emph{living room}, and \emph{corridor}, where \emph{corridor} is used as the closest semantic match for the \emph{hall} label in this work.
+
+The baseline will be a vision transformer architecture trained with supervised learning (cross-entropy). Images are resized to \(256 \times 256\), normalized, and processed by a transformer encoder to obtain a global representation used for classification. Training will be performed using GPU-backed compute resources (e.g., Google Colab) to enable efficient experimentation and reproducibility. A systematic hyperparameter exploration will be conducted to quantify performance sensitivity and to identify a strong baseline configuration. This includes varying learning rate, weight decay, batch size, optimizer settings, augmentation strength, input resolution (kept at \(256 \times 256\) for the main experiments), number of epochs, and (where applicable) the transformer variant or capacity.
+
+The problem is technically challenging due to high intra-class variability (viewpoint changes, illumination variation, clutter, partial occlusions) and strong inter-class similarity (e.g., living room vs.\ dining room, corridor/hall vs.\ living room). These factors frequently lead to consistent confusion patterns even for modern architectures. Therefore, the work emphasizes not only maximizing accuracy, but also analyzing class-wise error structure via confusion matrices and examining the learned representation space (embeddings), which motivates later extensions such as Center Loss and semi-supervised pseudo-labeling.
+
+
+\section{Motivation and Challenges}
+Indoor scene recognition is challenging due to viewpoint changes, clutter, illumination variation, and strong visual overlap between classes (e.g., living room vs. dining room, hall vs. living room).
+These ambiguities often appear as systematic confusions in the confusion matrix, even for strong modern architectures.
+
+\section{Objectives and Expected Deliverables}
+\begin{itemize}
+  \item Train and tune a transformer-based baseline (ViT-family) for the 6 room classes.
+  \item Integrate Center Loss to improve embedding compactness and class separability.
+  \item Simulate a semi-supervised setting via online pseudo-labeling to leverage unlabeled images when labeled data is limited.
+  \item Evaluate using overall accuracy, confusion matrices, and embedding-space visualizations (t-SNE/UMAP).
+\end{itemize}
+
+\chapter{Related Work (Short Literature Review)}
+
+\section{Vision Transformers for Image Classification}
+Vision Transformers (ViT) replace convolutional inductive bias with tokenization and self-attention, achieving strong performance when trained with adequate data and augmentation.
+Efficient training strategies (e.g., DeiT) and hierarchical attention (e.g., Swin Transformer) improve practicality and accuracy.
+
+\section{Center Loss and Embedding Separability}
+Center Loss encourages features of the same class to cluster around a learned class center.
+Combined with cross-entropy, it can improve intra-class compactness and potentially reduce class overlap.
+
+\section{Semi-Supervised Learning and Pseudo-Labeling}
+Pseudo-labeling assigns labels to unlabeled data using the current model predictions and retrains on confident samples.
+This can improve performance in low-label regimes, but requires safeguards against confirmation bias and noisy pseudo-labels.
+
+\chapter{Proposed Methodology}
+
+\section{Baseline Transformer Pipeline}
+\textbf{Model:} a known transformer architecture (e.g., ViT/DeiT/Swin).\\
+\textbf{Training:} supervised learning with cross-entropy; tuning learning rate, weight decay, augmentations, and model size.\\
+\textbf{Reproducibility:} fixed seeds, saved configs, logged metrics, and stored checkpoints.
+
+\section{Center Loss Integration}
+We will add Center Loss on the embedding vector (penultimate representation):
+\[
+L_{\text{total}} = L_{\text{CE}} + \lambda \, L_{\text{center}}.
+\]
+The coefficient $\lambda$ will be selected via a small sweep.
+Evidence will be provided through accuracy changes, confusion matrices, and embedding visualizations.
+
+\section{Semi-Supervised Online Pseudo-Labeling}
+We simulate limited labeled data by training on a labeled subset and iteratively adding pseudo-labeled samples from an unlabeled pool:
+\begin{itemize}
+  \item Generate predictions on unlabeled images each round/epoch.
+  \item Select only samples above a confidence threshold.
+  \item Optionally enforce class-balance constraints on selected pseudo-labels.
+  \item Continue training using both labeled and accepted pseudo-labeled samples.
+\end{itemize}
+
+\chapter{Dataset and Experimental Plan}
+
+\section{Dataset}
+\textbf{Dataset:} public indoor-room dataset (name, size, licensing, and link will be included in the final thesis).\\
+\textbf{Splits:} fixed train/validation/test split with a fixed random seed.\\
+\textbf{Preprocessing:} resizing to the transformer input size; normalization; augmentations for robustness.
+
+\section{Evaluation Protocol}
+Mandatory outputs for each system configuration:
+\begin{itemize}
+  \item Overall accuracy on the test split.
+  \item Confusion matrix (test split) to diagnose systematic confusions.
+  \item Embedding-space visualization (t-SNE/UMAP) to assess separability and compactness.
+\end{itemize}
+
+\section{Ablations and Sensitivity Checks}
+\begin{itemize}
+  \item Center Loss: sweep $\lambda$ and report sensitivity.
+  \item Semi-supervised: sweep confidence threshold; compare different labeled fractions (e.g., 10\%, 20\%, 50\%).
+\end{itemize}
+
+\chapter{Timeline (Until SR3 Presentation)}
+
+\section{Week-by-Week Plan}
+\begin{itemize}
+  \item \textbf{Now -- 26 Jan 2026:} finalize SR3 topic document; confirm supervisor mark email; prepare 5-minute talk.
+  \item \textbf{After SR3:} implement baseline training + evaluation pipeline; produce first confusion matrix.
+  \item \textbf{Then:} Center Loss integration + embedding plots.
+  \item \textbf{Then:} semi-supervised pseudo-labeling experiments + sensitivity analyses.
+\end{itemize}
+
+\bibliographystyle{plain}
+\bibliography{sr3_refs}
+
+\end{document}
