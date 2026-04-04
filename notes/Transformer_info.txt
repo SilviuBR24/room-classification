@@ -1,0 +1,6 @@
+Transformer network was developed in 2017, by google engineers in "Attention is all you need"
+
+Trasnformers solve the problem of translation of a very long paragraph that RNNs encountered.
+Transformers have an infinite reference window.
+Transformers work on the following principles:
+1. 

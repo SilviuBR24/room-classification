@@ -1,58 +1,19 @@
-\documentclass[12pt, a4paper, oneside]{teza-upb_en}
-\setcounter{secnumdepth}{3}
-\setcounter{tocdepth}{3}
-\usepackage{babel}
+\documentclass[english]{teza-upb_en}
+
+% ---------- Language / Encoding ----------
+\usepackage[english]{babel}
+\usepackage{bookmark}
+\usepackage[T1]{fontenc}
+
+% ---------- Math / Graphics / Links ----------
+\usepackage{amsmath, amssymb}
 \usepackage{graphicx}
-\usepackage{babel}
-\usepackage{color}
-\usepackage{graphicx}
-\usepackage[
-  bookmarks,
-  bookmarksopen=true,
-  pdftitle={Dizertatie},
-  linktocpage]{hyperref}
+\usepackage{hyperref}
+\usepackage{url}
 
-
-\singlespacing
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%cod colorat
-\usepackage{listings}
-\usepackage{color}
- 
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
-
-\lstdefinestyle{mystyle}{
-	language=Matlab,
- %   backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{blue},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-	basicstyle=\ttfamily\scriptsize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
-    showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
-}
- 
-\lstset{style=mystyle}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\begin{document}
-
+% ---------- Metadata ----------
 \author{Lupu Silviu-George}
-
 \title{Room Type Classification in Indoor Images Using Vision Transformers}
-
 \facultatea{Faculty of Electronics, Telecommunications and Information Technology}
 \tiplucrare{Dissertation Thesis}
 \domeniu{Electronics, Telecommunications and Information Technology}
@@ -60,87 +21,139 @@
 \campus{Leu}
 \program{Advanced Wireless Communications}
 \titlulobtinut{Master of Science}
-\director{Prof. Firstname Lastname}
-
-\submissionmonth{June}
+\director{As. dr. ing. Andrei-Mircea RACOVIȚEANU}
+\submissionmonth{April}
 \submissionyear{2026}
 
+\begin{document}
+
 \beforepreface
-\listoffigures
-\listoftables
-\abbreviations{
-  ViT = Vision Transformer\\
-  CE  = Cross-Entropy\\
-  CL  = Center Loss\\
-  SSL = Semi-Supervised Learning\\
-  CM  = Confusion Matrix\\
-  mAP = mean Average Precision
-}
+\tableofcontents
 \afterpreface
 
 \chapter{Introduction}
+
+\section{Context and Problem Statement}
+In today’s digital era, large public image collections and modern deep learning methods enable the development of systems for automatic visual understanding. In this context, the proposed topic addresses the problem of indoor room classification from a single RGB image.
+
+The goal of this project is to develop a system capable of identifying the type of room depicted in an input image. The task is formulated as a 6-class classification problem with the following categories: bathroom, bedroom, dining\_room, entrance\_hall, kitchen, and living\_room.
+
+The implementation will be carried out in Python using PyTorch. Training and experimentation will be performed using Google Colab and available GPU resources. The baseline system will rely on a transformer-based image classification architecture, followed by additional experiments designed to improve feature separability and exploit unlabeled data.
+
 \section{Motivation}
-% TODO: Explain why room classification matters (smart homes, indoor robotics, real-estate indexing).
-% TODO: Describe class ambiguity (e.g., living room vs. dining room, hall vs. living room).
+Indoor room classification is a relevant and challenging problem because visually similar room categories may generate systematic confusions. Variations in viewpoint, lighting, clutter, and furniture arrangement make classification non-trivial even for modern models.
 
-\section{Problem Statement}
-We address the problem of classifying an indoor image into one of six room categories:
-bathroom, kitchen, living room, bedroom, hall, and dining room.
+This topic is also relevant from a research perspective because it combines three important directions: transformer-based vision models, representation learning through Center Loss, and semi-supervised learning through self-labeling. The project therefore provides both a practical implementation challenge and a meaningful experimental study.
 
-\section{Contributions}
+\section{Objectives}
+The main objectives of this work are:
 \begin{itemize}
-  \item Train and tune a transformer-based baseline for six-class room recognition.
-  \item Integrate Center Loss to improve embedding compactness and class separability.
-  \item Simulate a semi-supervised scenario using online pseudo-labeling of unlabeled images.
-  \item Evaluate using overall accuracy, confusion matrices, and embedding-space visualizations.
+    \item to study the fundamental concepts behind vision transformers and understand how they process images;
+    \item to implement in Python a visual transformer architecture for 6-class room classification;
+    \item to train and evaluate a baseline model on a filtered subset of a public dataset;
+    \item to integrate Center Loss and analyze whether it improves embedding compactness and class separability;
+    \item to simulate a semi-supervised scenario in which unlabeled images are pseudo-labeled using the current model;
+    \item to evaluate all system variants using accuracy, confusion matrices, and embedding-space visualizations.
 \end{itemize}
 
-\chapter{Background and Related Work}
-\section{Vision Transformers for Image Classification}
-% TODO: Summarize ViT principles and why they are suitable for indoor scenes.
+\chapter{Related Work}
 
-\section{Metric Learning and Center Loss}
-% TODO: Explain Center Loss and its intended effect on embeddings.
+\section{Transformers}
+Transformers were introduced as an attention-based alternative to recurrent sequence models \cite{vaswani2017attention}. Their ability to model long-range dependencies efficiently made them highly influential in deep learning.
 
-\section{Semi-Supervised Learning with Pseudo-Labels}
-% TODO: Describe pseudo-labeling, confidence thresholds, and noise control.
+Later, transformers were adapted for image classification by representing an image as a sequence of patch tokens processed by transformer encoder blocks \cite{dosovitskiy2020vit}. This idea motivates the use of a transformer-based baseline in the present work.
 
-\chapter{Dataset and Experimental Protocol}
-\section{Dataset Description}
-% TODO: Provide dataset name, size, class distribution, licensing, and download link.
+\section{Visual Representation Learning}
+Recent work has shown that transformer-based visual representations can be further improved through large-scale pretraining and representation learning strategies \cite{oquab2023dinov2}. These developments support the relevance of transformer-based models for image understanding tasks.
 
-\section{Preprocessing and Augmentation}
-% TODO: Resize, normalization, augmentations, and rationale.
+\section{Recent Developments in Image Classification}
+More recent studies continue to evaluate and compare transformer variants for image recognition and image classification, highlighting practical trade-offs between accuracy, model complexity, and training efficiency \cite{vlachogiannis2025vit_eval}.
 
-\section{Splits and Reproducibility}
-% TODO: Train/val/test split strategy, seeds, and reproducible training setup.
+\chapter{Dataset}
+
+\section{Dataset Source}
+The experiments are based on a filtered subset of the public Places365 dataset. From this dataset, six indoor categories were selected: bathroom, bedroom, dining\_room, entrance\_hall, kitchen, and living\_room.
+
+All images are RGB and will be processed at a fixed input resolution of \(256 \times 256\).
+
+\section{Current Available Data}
+At the current stage, the extracted subset contains:
+\begin{itemize}
+    \item 5,000 training images for each class;
+    \item 100 evaluation images for each class.
+\end{itemize}
+
+This results in a total of 30,000 training images and 600 evaluation images.
+
+\section{Planned Experimental Split}
+According to the current dissertation plan discussed with the coordinator, the supervised and semi-supervised stages will later use a refined split in which:
+\begin{itemize}
+    \item approximately 3,500 images per class are treated as labeled data;
+    \item the remaining approximately 1,500 images per class are treated as unlabeled data for the self-labeling stage.
+\end{itemize}
+
+\section{Preprocessing}
+Images will be resized to \(256 \times 256\) and normalized before being fed to the network. Training-time augmentation will also be considered in order to improve robustness and generalization.
 
 \chapter{Proposed Methodology}
-\section{Transformer Baseline}
-% TODO: Architecture choice (e.g., ViT/DeiT/Swin), initialization, optimizer, LR schedule.
 
-\section{Center Loss Integration}
-% TODO: Total loss: L = L_{CE} + \lambda L_{center}; how centers are updated; chosen \lambda.
+\section{Baseline Model}
+The starting point of the project is a visual transformer model implemented in Python. The initial target is a ViT-S/16 type architecture trained from scratch for the 6-class room classification task.
 
-\section{Semi-Supervised Pipeline}
-% TODO: Online pseudo-labeling loop; confidence threshold; class balancing; stopping criteria.
+The baseline model will be trained in a supervised manner using labeled data only. This stage is meant to establish a reference point for all later comparisons.
 
-\chapter{Results and Discussion}
-\section{Quantitative Results}
-% TODO: Accuracy and per-class metrics.
+\section{Center Loss Extension}
+After obtaining the transformer baseline, the next step is to introduce Center Loss in addition to the standard classification loss. The purpose of this extension is to encourage embeddings from the same class to become more compact and better separated from other classes.
 
-\section{Confusion Matrix Analysis}
-% TODO: Explain which classes are confused and why.
+The effect of this modification will be studied not only through classification accuracy, but also through embedding-space visualizations.
 
-\section{Embedding-Space Visualization}
-% TODO: t-SNE/UMAP plots; compare with/without Center Loss.
+\section{Semi-Supervised Extension}
+A later stage of the project will simulate a semi-supervised scenario. In this setting, part of the dataset will be considered unlabeled. These images will be automatically annotated by the current network using a self-labeling strategy, and then reused during training.
 
-\section{Ablation and Sensitivity}
-% TODO: Hyperparameters, \lambda, threshold, amount of labeled data.
+This experiment is intended to evaluate whether the model can benefit from additional unlabeled images when the amount of labeled data is limited.
 
-\chapter{Conclusions and Future Work}
-% TODO: Summarize findings; propose next steps.
+\chapter{Evaluation Plan}
 
-\bibliography{references}
+\section{Evaluation Metrics}
+The main performance indicators considered in this work are:
+\begin{itemize}
+    \item overall classification accuracy;
+    \item confusion matrices;
+    \item embedding-space visualizations.
+\end{itemize}
+
+\section{Planned Comparisons}
+The following comparisons are planned:
+\begin{itemize}
+    \item baseline transformer vs.\ transformer + Center Loss;
+    \item supervised setting vs.\ semi-supervised self-labeling setting;
+    \item optional later comparison with ArcFace or Ring Loss, after the Center Loss stage is completed.
+\end{itemize}
+
+\chapter{Progress Achieved So Far}
+
+\section{Work Completed Until Now}
+Until this stage, the following progress has been made:
+\begin{itemize}
+    \item a GitHub repository was created to store code, modifications, and future experiment results;
+    \item a 6-class subset was extracted from the public Places365 dataset;
+    \item the LaTeX dissertation environment was configured and the faculty template was translated from Romanian into English while preserving the original formatting;
+    \item an initial study phase on transformers was started, focusing on the basic concepts required for the project.
+\end{itemize}
+
+\chapter{Next Steps}
+
+\section{Immediate Plan}
+The next steps are:
+\begin{itemize}
+    \item finalize the first dissertation draft structure;
+    \item implement the ViT-S/16 architecture in Python from scratch;
+    \item prepare the supervised training pipeline;
+    \item train the baseline model and obtain the first evaluation results;
+    \item continue the theoretical study of transformers in parallel with implementation.
+\end{itemize}
+
+\bibliographystyle{plain}
+\bibliography{sr3_refs}
 
 \end{document}
