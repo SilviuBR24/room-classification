@@ -1,0 +1,31 @@
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# ----- Training artifacts (do NOT commit large binaries) -----
+*.pt
+*.pth
+*.ckpt
+*.npy
+
+# Keep the folder placeholders, ignore their contents.
+checkpoints/*
+!checkpoints/.gitkeep
+runs/*
+!runs/.gitkeep
+outputs/*
+!outputs/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# ----- OS / editor noise -----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
