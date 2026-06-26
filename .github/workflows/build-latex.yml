@@ -39,8 +39,16 @@ jobs:
       - name: Collect PDFs
         run: |
           mkdir -p pdf-output
-          cp thesis/Lupu_Silviu-George.pdf pdf-output/Lupu_Silviu-George.pdf
-          cp thesis/Example/Dissertation_Lupu_Silviu-George_using_en_class.pdf pdf-output/Dissertation_example.pdf
+          if [ -f thesis/Lupu_Silviu-George.pdf ]; then
+            cp thesis/Lupu_Silviu-George.pdf pdf-output/Lupu_Silviu-George.pdf
+          else
+            echo "Main thesis PDF not found" >&2; exit 1
+          fi
+          if [ -f thesis/Example/Dissertation_Lupu_Silviu-George_using_en_class.pdf ]; then
+            cp thesis/Example/Dissertation_Lupu_Silviu-George_using_en_class.pdf pdf-output/Dissertation_example.pdf
+          else
+            echo "Example PDF not found — skipping"
+          fi
 
       - name: Create index page
         run: |
