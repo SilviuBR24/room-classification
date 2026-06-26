@@ -1,0 +1,64 @@
+# ============================================================
+# Configuration for the ViT-S/16 SUPERVISED BASELINE
+# (6-class indoor room classification, Places365 subset)
+# ------------------------------------------------------------
+# This file holds ALL tunable parameters. `train.py` reads it,
+# copies it into the run folder as `config_used.yaml`, and also
+# stores it inside every checkpoint, so any experiment can be
+# reproduced or resumed exactly.
+#
+# NOTE: Center Loss / pseudo-labeling are intentionally NOT here
+# yet. This is step 1 (stable supervised baseline). The model
+# already returns CLS embeddings, so those stages plug in later.
+# ============================================================
+
+run_name: "vit_s16_baseline"      # used to name the experiment folder
+
+model:
+  image_size: 256
+  patch_size: 16
+  in_channels: 3
+  embed_dim: 384                  # ViT-S
+  depth: 12                       # number of transformer encoder blocks
+  num_heads: 6                    # head_dim = 384 / 6 = 64
+  mlp_ratio: 4.0
+  dropout: 0.1                    # dropout in MLP / projection / positional
+  attn_dropout: 0.0               # dropout applied to attention weights
+  qkv_bias: true
+  num_classes: 6
+
+data:
+  train_dir: "/content/drive/MyDrive/dissertation_dataset/train"
+  eval_dir:  "/content/drive/MyDrive/dissertation_dataset/eval"
+  # Fixed, explicit class order. Index = position in this list.
+  class_names:
+    - bathroom
+    - bedroom
+    - dining_room
+    - entrance_hall
+    - kitchen
+    - living_room
+  # Normalization statistics. ImageNet defaults are a fine, standard
+  # choice even when training from scratch (they only rescale inputs).
+  norm_mean: [0.485, 0.456, 0.406]
+  norm_std:  [0.229, 0.224, 0.225]
+
+training:
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.0003
+  weight_decay: 0.05
+  seed: 42
+  num_workers: 2
+  use_amp: true                   # mixed precision (only active on CUDA)
+  scheduler: "cosine"             # "cosine" or "none"
+  warmup_epochs: 5                # linear LR warmup before cosine decay
+  label_smoothing: 0.1            # passed to CrossEntropyLoss
+  grad_clip: 1.0                  # max grad-norm; set to null to disable
+  save_epoch_checkpoints: false   # if true, also keep checkpoints/epoch_XXX.pt
+  eval_every: 1                   # evaluate every N epochs
+
+paths:
+  # Run folders (checkpoints/logs/outputs) are created under here.
+  # On Colab, point this at Google Drive so results survive disconnects.
+  output_root: "/content/drive/MyDrive/dissertation_runs"
