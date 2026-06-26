@@ -1,0 +1,78 @@
+name: Build LaTeX and Deploy PDFs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.tex'
+      - '**.bib'
+      - '**.cls'
+      - '.github/workflows/build-latex.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compile thesis/Lupu_Silviu-George.tex
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: Lupu_Silviu-George.tex
+          working_directory: thesis
+          latexmk_use_xelatex: false
+          extra_system_packages: "font-dejavu"
+
+      - name: Compile thesis/Example/Dissertation_Lupu_Silviu-George_using_en_class.tex
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: Dissertation_Lupu_Silviu-George_using_en_class.tex
+          working_directory: thesis/Example
+          latexmk_use_xelatex: false
+          extra_system_packages: "font-dejavu"
+
+      - name: Collect PDFs
+        run: |
+          mkdir -p pdf-output
+          cp thesis/Lupu_Silviu-George.pdf pdf-output/Lupu_Silviu-George.pdf
+          cp thesis/Example/Dissertation_Lupu_Silviu-George_using_en_class.pdf pdf-output/Dissertation_example.pdf
+
+      - name: Create index page
+        run: |
+          cat > pdf-output/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>Dissertation PDFs – Lupu Silviu-George</title>
+            <style>
+              body { font-family: sans-serif; max-width: 600px; margin: 60px auto; }
+              h1 { font-size: 1.4rem; }
+              ul { line-height: 2; }
+              a { color: #0969da; }
+            </style>
+          </head>
+          <body>
+            <h1>Dissertation PDFs</h1>
+            <ul>
+              <li><a href="Lupu_Silviu-George.pdf">Lupu_Silviu-George.pdf</a> – main thesis</li>
+              <li><a href="Dissertation_example.pdf">Dissertation_example.pdf</a> – template example</li>
+            </ul>
+            <p style="color:#666; font-size:0.85rem;">Auto-generated on every push to main.</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./pdf-output
+          publish_branch: gh-pages
+          commit_message: "ci: update PDFs [skip ci]"
+          force_orphan: false
