@@ -58,6 +58,13 @@ training:
   save_epoch_checkpoints: false   # if true, also keep checkpoints/epoch_XXX.pt
   eval_every: 1                   # evaluate every N epochs
 
+  # --- Center Loss (Wen et al. 2016) -- Part 2 of the thesis -----------
+  # When enabled, total loss = CrossEntropy + center_loss_weight * CenterLoss.
+  # The class centers are learnable and trained by their own SGD optimizer.
+  use_center_loss: false          # false = plain supervised baseline (unchanged)
+  center_loss_weight: 0.01        # lambda: weight of the center term vs cross-entropy
+  center_loss_lr: 0.5             # learning rate for the class centers (own SGD)
+
 paths:
   # Run folders (checkpoints/logs/outputs) are created under here.
   # On Colab, point this at Google Drive so results survive disconnects.

@@ -93,6 +93,8 @@ class Trainer:
         logger: Any,
         csv_logger: MetricsCSVLogger,
         ckpt_manager: CheckpointManager,
+        center_loss: Optional[nn.Module] = None,
+        optimizer_center: Optional[torch.optim.Optimizer] = None,
     ) -> None:
         self.model = model
         self.criterion = criterion
@@ -106,6 +108,8 @@ class Trainer:
         self.logger = logger
         self.csv_logger = csv_logger
         self.ckpt = ckpt_manager
+        self.center_loss = center_loss
+        self.optimizer_center = optimizer_center
 
         tcfg = config["training"]
         self.epochs = int(tcfg["epochs"])
@@ -114,6 +118,9 @@ class Trainer:
         self.grad_clip = tcfg.get("grad_clip", None)
         self.save_epoch_ckpts = bool(tcfg.get("save_epoch_checkpoints", False))
         self.eval_every = int(tcfg.get("eval_every", 1))
+        # Center Loss is active only when a module was supplied.
+        self.use_center_loss = center_loss is not None
+        self.center_weight = float(tcfg.get("center_loss_weight", 0.0))
 
     # -- one training epoch --------------------------------------------
     def train_one_epoch(self, loader: DataLoader, epoch: int) -> Dict[str, float]:
@@ -126,9 +133,17 @@ class Trainer:
             targets = targets.to(self.device, non_blocking=True)
 
             self.optimizer.zero_grad(set_to_none=True)
+            if self.use_center_loss:
+                self.optimizer_center.zero_grad(set_to_none=True)
             with self.autocast_ctx():
-                logits = self.model(images)
-                loss = self.criterion(logits, targets)
+                if self.use_center_loss:
+                    # Need the CLS embedding for the center term.
+                    logits, feats = self.model(images, return_embeddings=True)
+                    loss = self.criterion(logits, targets) + \
+                        self.center_weight * self.center_loss(feats, targets)
+                else:
+                    logits = self.model(images)
+                    loss = self.criterion(logits, targets)
 
             # scaler is a no-op when AMP is disabled, so this path is uniform.
             self.scaler.scale(loss).backward()
@@ -138,6 +153,9 @@ class Trainer:
                     self.model.parameters(), float(self.grad_clip)
                 )
             self.scaler.step(self.optimizer)
+            if self.use_center_loss:
+                # Centers get their own step; scaler unscales their grads too.
+                self.scaler.step(self.optimizer_center)
             self.scaler.update()
 
             batch_acc = accuracy(logits.detach(), targets)
@@ -179,6 +197,12 @@ class Trainer:
             ),
             "scaler_state_dict": (
                 self.scaler.state_dict() if self.use_amp else None
+            ),
+            "center_loss_state_dict": (
+                self.center_loss.state_dict() if self.use_center_loss else None
+            ),
+            "optimizer_center_state_dict": (
+                self.optimizer_center.state_dict() if self.use_center_loss else None
             ),
             "best_eval_accuracy": best_acc,
             "metrics": metrics,
