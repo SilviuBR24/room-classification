@@ -35,6 +35,7 @@ from typing import Any, Dict
 import torch
 import torch.nn as nn
 
+from src.center_loss import CenterLoss
 from src.checkpoint import CheckpointManager, load_checkpoint
 from src.dataset import build_dataloaders
 from src.logger import MetricsCSVLogger, setup_logger
@@ -153,6 +154,24 @@ def main() -> None:
         label_smoothing=float(config["training"].get("label_smoothing", 0.0))
     )
 
+    # Center Loss (optional) -- Part 2. Its learnable class centers get their own
+    # SGD optimizer, stepped alongside the main optimizer each batch.
+    center_loss = None
+    optimizer_center = None
+    if bool(config["training"].get("use_center_loss", False)):
+        center_loss = CenterLoss(
+            num_classes=int(config["model"]["num_classes"]),
+            feat_dim=int(config["model"]["embed_dim"]),
+        ).to(device)
+        optimizer_center = torch.optim.SGD(
+            center_loss.parameters(),
+            lr=float(config["training"].get("center_loss_lr", 0.5)),
+        )
+        logger.info(
+            f"Center Loss ENABLED | weight={config['training'].get('center_loss_weight', 0.0)} "
+            f"| center_lr={config['training'].get('center_loss_lr', 0.5)}"
+        )
+
     # ------------------------------------------------------------------
     # Restore state on resume
     # ------------------------------------------------------------------
@@ -168,6 +187,10 @@ def main() -> None:
                 scaler.load_state_dict(checkpoint["scaler_state_dict"])
             except Exception as exc:
                 logger.warning(f"Could not restore AMP scaler state: {exc}")
+        if center_loss is not None and checkpoint.get("center_loss_state_dict") is not None:
+            center_loss.load_state_dict(checkpoint["center_loss_state_dict"])
+            if optimizer_center is not None and checkpoint.get("optimizer_center_state_dict") is not None:
+                optimizer_center.load_state_dict(checkpoint["optimizer_center_state_dict"])
         if checkpoint.get("rng_state") is not None:
             set_rng_state(checkpoint["rng_state"])
         best_acc = float(checkpoint.get("best_eval_accuracy", 0.0))
@@ -196,6 +219,8 @@ def main() -> None:
         logger=logger,
         csv_logger=csv_logger,
         ckpt_manager=ckpt_manager,
+        center_loss=center_loss,
+        optimizer_center=optimizer_center,
     )
 
     best = trainer.fit(train_loader, eval_loader, start_epoch=start_epoch, best_acc=best_acc)
