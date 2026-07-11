@@ -56,6 +56,10 @@ class CheckpointManager:
     def epoch_path(self, epoch: int) -> Path:
         return self.dir / f"epoch_{epoch:03d}.pt"
 
+    def has_last(self) -> bool:
+        """True if a last_checkpoint.pt already exists in this run."""
+        return self.last_path.is_file()
+
     # -- save -----------------------------------------------------------
     @staticmethod
     def _atomic_save(state: Dict[str, Any], path: Path) -> None:

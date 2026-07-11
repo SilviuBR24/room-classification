@@ -153,9 +153,16 @@ def build_dataset(
 def build_dataloaders(
     cfg: Dict[str, Any], device: torch.device
 ) -> Tuple[DataLoader, DataLoader, Dict[str, int]]:
-    """Build train and eval DataLoaders plus the class_to_idx mapping."""
+    """Build train and VALIDATION DataLoaders plus the class_to_idx mapping.
+
+    The validation set is used only for best-model selection during training.
+    It comes from `data.val_dir` if present; otherwise it falls back to
+    `data.eval_dir` (preserving the old single-split behaviour). The test set
+    (`data.eval_dir`) is used exclusively by `evaluate.py` for final reporting.
+    """
     train_ds = build_dataset(cfg["data"]["train_dir"], cfg, train=True)
-    eval_ds = build_dataset(cfg["data"]["eval_dir"], cfg, train=False)
+    val_dir = cfg["data"].get("val_dir") or cfg["data"]["eval_dir"]
+    val_ds = build_dataset(val_dir, cfg, train=False)
 
     batch_size = cfg["training"]["batch_size"]
     num_workers = cfg["training"]["num_workers"]
@@ -171,8 +178,8 @@ def build_dataloaders(
         drop_last=False,
         persistent_workers=persistent,
     )
-    eval_loader = DataLoader(
-        eval_ds,
+    val_loader = DataLoader(
+        val_ds,
         batch_size=batch_size,
         shuffle=False,  # keep order so predictions align with dataset.samples
         num_workers=num_workers,
@@ -180,4 +187,4 @@ def build_dataloaders(
         drop_last=False,
         persistent_workers=persistent,
     )
-    return train_loader, eval_loader, train_ds.class_to_idx
+    return train_loader, val_loader, train_ds.class_to_idx

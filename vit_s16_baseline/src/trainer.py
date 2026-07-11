@@ -121,11 +121,14 @@ class Trainer:
         # Center Loss is active only when a module was supplied.
         self.use_center_loss = center_loss is not None
         self.center_weight = float(tcfg.get("center_loss_weight", 0.0))
+        # Set True if fit() is stopped by KeyboardInterrupt / exception.
+        self.interrupted = False
 
     # -- one training epoch --------------------------------------------
     def train_one_epoch(self, loader: DataLoader, epoch: int) -> Dict[str, float]:
         self.model.train()
         loss_meter, acc_meter = AverageMeter(), AverageMeter()
+        ce_meter, center_meter = AverageMeter(), AverageMeter()  # separate components
 
         pbar = tqdm(loader, desc=f"Train {epoch + 1}/{self.epochs}", leave=False)
         for images, targets in pbar:
@@ -139,11 +142,14 @@ class Trainer:
                 if self.use_center_loss:
                     # Need the CLS embedding for the center term.
                     logits, feats = self.model(images, return_embeddings=True)
-                    loss = self.criterion(logits, targets) + \
-                        self.center_weight * self.center_loss(feats, targets)
+                    ce = self.criterion(logits, targets)
+                    center_raw = self.center_loss(feats, targets)
+                    loss = ce + self.center_weight * center_raw
                 else:
                     logits = self.model(images)
-                    loss = self.criterion(logits, targets)
+                    ce = self.criterion(logits, targets)
+                    center_raw = None
+                    loss = ce
 
             # scaler is a no-op when AMP is disabled, so this path is uniform.
             self.scaler.scale(loss).backward()
@@ -155,17 +161,30 @@ class Trainer:
             self.scaler.step(self.optimizer)
             if self.use_center_loss:
                 # Centers get their own step; scaler unscales their grads too.
+                # NOTE: the center gradients still carry the center_loss_weight
+                # factor, so the effective center LR = center_loss_lr * weight.
                 self.scaler.step(self.optimizer_center)
             self.scaler.update()
 
+            bs = images.size(0)
             batch_acc = accuracy(logits.detach(), targets)
-            loss_meter.update(loss.item(), images.size(0))
-            acc_meter.update(batch_acc, images.size(0))
+            loss_meter.update(loss.item(), bs)
+            ce_meter.update(ce.item(), bs)
+            if self.use_center_loss:
+                center_meter.update(center_raw.item(), bs)
+            acc_meter.update(batch_acc, bs)
 
             if hasattr(pbar, "set_postfix"):
                 pbar.set_postfix(loss=f"{loss_meter.avg:.4f}", acc=f"{acc_meter.avg:.4f}")
 
-        return {"train_loss": loss_meter.avg, "train_accuracy": acc_meter.avg}
+        center_raw_avg = center_meter.avg if self.use_center_loss else 0.0
+        return {
+            "train_loss": loss_meter.avg,                                # total
+            "train_ce": ce_meter.avg,                                    # cross-entropy
+            "train_center_raw": center_raw_avg,                          # unweighted
+            "train_center_weighted": self.center_weight * center_raw_avg,  # lambda * raw
+            "train_accuracy": acc_meter.avg,
+        }
 
     # -- evaluation -----------------------------------------------------
     @torch.no_grad()
@@ -216,14 +235,17 @@ class Trainer:
     def fit(
         self,
         train_loader: DataLoader,
-        eval_loader: DataLoader,
+        val_loader: DataLoader,
         start_epoch: int = 0,
         best_acc: float = 0.0,
     ) -> float:
         """Run training from `start_epoch` to the configured number of epochs.
 
-        Saves last/best/epoch checkpoints each epoch and an emergency
-        checkpoint on interruption. Returns the best eval accuracy reached.
+        Best-model selection uses the VALIDATION loader (never the test set).
+        `last_checkpoint.pt` holds only the state of the last COMPLETED epoch.
+        On interruption a PARTIAL snapshot is saved (marked `partial`), but the
+        recommended resume point is the clean `last_checkpoint.pt`. Returns the
+        best validation accuracy reached.
         """
         self.logger.info(
             f"Starting training: epochs {start_epoch + 1}..{self.epochs}, "
@@ -236,91 +258,111 @@ class Trainer:
 
                 train_metrics = self.train_one_epoch(train_loader, epoch)
 
-                # Evaluate on schedule (always on the final epoch).
+                # Validate on schedule (always on the final epoch).
                 do_eval = ((epoch + 1) % self.eval_every == 0) or (
                     epoch + 1 == self.epochs
                 )
                 if do_eval:
-                    eval_metrics = self.evaluate(eval_loader)
+                    val_metrics = self.evaluate(val_loader)
                 else:
-                    eval_metrics = {"eval_loss": None, "eval_accuracy": None}
+                    val_metrics = {"eval_loss": None, "eval_accuracy": None}
 
                 # Step the LR schedule once per epoch (after this epoch's work).
                 if self.scheduler is not None:
                     self.scheduler.step()
 
-                metrics = {**train_metrics, **eval_metrics}
-                eval_acc = eval_metrics["eval_accuracy"]
+                metrics = {**train_metrics, **val_metrics}
+                val_acc = val_metrics["eval_accuracy"]
 
-                # Always save "last".
+                # Decide "best" BEFORE building the saved state, so
+                # last_checkpoint.pt always carries the up-to-date best_acc.
+                is_best = val_acc is not None and val_acc > best_acc
+                if is_best:
+                    best_acc = val_acc
+
                 state = self._build_state(epoch, metrics, best_acc)
                 last_path = self.ckpt.save_last(state)
-
-                # Save "best" when eval accuracy improves.
-                is_best = eval_acc is not None and eval_acc > best_acc
                 if is_best:
-                    best_acc = eval_acc
-                    # rebuild state so best_eval_accuracy reflects the new best
-                    state = self._build_state(epoch, metrics, best_acc)
                     self.ckpt.save_best(state)
-
-                # Optional per-epoch archive.
                 if self.save_epoch_ckpts:
                     self.ckpt.save_epoch(state, epoch)
 
                 self.csv_logger.log(
                     epoch=epoch + 1,
                     train_loss=train_metrics["train_loss"],
+                    train_ce=train_metrics["train_ce"],
+                    train_center_raw=train_metrics["train_center_raw"],
+                    train_center_weighted=train_metrics["train_center_weighted"],
                     train_accuracy=train_metrics["train_accuracy"],
-                    eval_loss=eval_metrics["eval_loss"],
-                    eval_accuracy=eval_metrics["eval_accuracy"],
+                    val_loss=val_metrics["eval_loss"],
+                    val_accuracy=val_metrics["eval_accuracy"],
                     learning_rate=current_lr,
                     checkpoint_path=str(last_path),
                 )
 
                 dt = time.time() - t0
-                eval_str = (
-                    f"eval_loss={eval_metrics['eval_loss']:.4f} "
-                    f"eval_acc={eval_acc:.4f}"
-                    if eval_acc is not None
-                    else "eval=skipped"
+                val_str = (
+                    f"val_loss={val_metrics['eval_loss']:.4f} val_acc={val_acc:.4f}"
+                    if val_acc is not None
+                    else "val=skipped"
                 )
                 self.logger.info(
                     f"Epoch {epoch + 1:3d}/{self.epochs} | "
                     f"lr={current_lr:.2e} | "
                     f"train_loss={train_metrics['train_loss']:.4f} "
                     f"train_acc={train_metrics['train_accuracy']:.4f} | "
-                    f"{eval_str} | "
+                    f"{val_str} | "
                     f"best_acc={best_acc:.4f} | {dt:.1f}s"
                     + ("  <-- new best" if is_best else "")
                 )
 
-            self.logger.info(f"Training complete. Best eval accuracy: {best_acc:.4f}")
+            self.logger.info(f"Training complete. Best val accuracy: {best_acc:.4f}")
             return best_acc
 
         except KeyboardInterrupt:
-            self.logger.warning("KeyboardInterrupt received -- saving emergency checkpoint.")
+            self.interrupted = True
+            self.logger.warning("KeyboardInterrupt -- saving a PARTIAL snapshot (mid-epoch).")
             self._emergency_save(locals().get("epoch", start_epoch),
                                  locals().get("metrics", {}), best_acc)
             self.logger.warning(
-                f"Resume with:  python train.py "
-                f"--resume {self.ckpt.interrupted_path}"
+                "Resume from the last COMPLETED epoch with:\n"
+                f"    python train.py --resume {self.ckpt.last_path}"
             )
             return best_acc
 
         except Exception as exc:
-            self.logger.error(f"Exception during training: {exc} -- saving emergency checkpoint.")
+            self.interrupted = True
+            self.logger.error(f"Exception during training: {exc} -- saving a PARTIAL snapshot.")
             self._emergency_save(locals().get("epoch", start_epoch),
                                  locals().get("metrics", {}), best_acc)
             raise  # re-raise so the full traceback is visible
+
+    # -- initial checkpoint --------------------------------------------
+    def save_initial_checkpoint(self) -> None:
+        """Save an epoch=-1 checkpoint with ALL initial states (model, optimizer,
+        scheduler, AMP scaler, Center Loss + its optimizer, RNG), so a resume
+        works even if training is interrupted during the very first epoch.
+
+        Intended to be called ONCE for a fresh run, before training starts.
+        """
+        state = self._build_state(epoch=-1, metrics={}, best_acc=0.0)
+        self.ckpt.save_last(state)
+        self.logger.info("Saved initial checkpoint (epoch=-1) as a safe resume point.")
 
     # -- emergency save -------------------------------------------------
     def _emergency_save(
         self, epoch: int, metrics: Dict[str, Any], best_acc: float
     ) -> None:
+        """Save a PARTIAL, mid-epoch snapshot. It is flagged `partial=True` and
+        must NOT be used for resume (`train.py` refuses it) -- it exists only as
+        a forensic snapshot. `last_checkpoint.pt` is left untouched."""
         try:
             state = self._build_state(epoch, metrics, best_acc)
+            state["partial"] = True  # mid-epoch; NOT a clean resume point
             path = self.ckpt.save_interrupted(state)
-            self.logger.warning(f"Emergency checkpoint saved to: {path}")
+            self.logger.warning(
+                f"Partial snapshot saved to: {path} (do NOT --resume this; "
+                f"use last_checkpoint.pt)."
+            )
         except Exception as exc:  # last-resort guard
-            self.logger.error(f"Failed to save emergency checkpoint: {exc}")
+            self.logger.error(f"Failed to save partial snapshot: {exc}")

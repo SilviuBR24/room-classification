@@ -7,9 +7,10 @@
 # stores it inside every checkpoint, so any experiment can be
 # reproduced or resumed exactly.
 #
-# NOTE: Center Loss / pseudo-labeling are intentionally NOT here
-# yet. This is step 1 (stable supervised baseline). The model
-# already returns CLS embeddings, so those stages plug in later.
+# NOTE: Center Loss (Part 2) IS implemented and is toggled by
+# `use_center_loss` below. Pseudo-labeling / self-labeling (Part 3)
+# is not implemented yet. The model returns CLS embeddings, which
+# Center Loss uses and Part 3 will plug into.
 # ============================================================
 
 run_name: "vit_s16_baseline"      # used to name the experiment folder
@@ -28,7 +29,11 @@ model:
   num_classes: 6
 
 data:
+  # Three roles: train (fit weights), val (best-model selection during training),
+  # eval = TEST (final reporting only, via evaluate.py). If val_dir is omitted,
+  # validation falls back to eval_dir (the old single-split behaviour).
   train_dir: "/content/drive/MyDrive/dissertation_dataset/train"
+  val_dir:   "/content/drive/MyDrive/dissertation_dataset/val"
   eval_dir:  "/content/drive/MyDrive/dissertation_dataset/eval"
   # Fixed, explicit class order. Index = position in this list.
   class_names:
@@ -60,10 +65,15 @@ training:
 
   # --- Center Loss (Wen et al. 2016) -- Part 2 of the thesis -----------
   # When enabled, total loss = CrossEntropy + center_loss_weight * CenterLoss.
-  # The class centers are learnable and trained by their own SGD optimizer.
-  use_center_loss: false          # false = plain supervised baseline (unchanged)
-  center_loss_weight: 0.01        # lambda: weight of the center term vs cross-entropy
-  center_loss_lr: 0.5             # learning rate for the class centers (own SGD)
+  # The class centers are learnable, updated by their own SGD optimizer.
+  # IMPORTANT (implementation note): the center gradients still carry the
+  # center_loss_weight factor, so the EFFECTIVE center learning rate is
+  # center_loss_lr * center_loss_weight. Changing lambda therefore also
+  # changes how fast the centers move -- a known coupling, so the lambda
+  # sweep is partly confounded by it. This is a valid Center Loss variant.
+  use_center_loss: false         # false = plain supervised baseline
+  center_loss_weight: 0.001      # lambda: weight of the center term (best in our sweep)
+  center_loss_lr: 0.5            # base LR for the centers (effective = this * lambda)
 
 paths:
   # Run folders (checkpoints/logs/outputs) are created under here.
