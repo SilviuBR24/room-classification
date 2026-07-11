@@ -98,6 +98,13 @@ def main() -> None:
     if resuming:
         ckpt_path = Path(args.resume)
         checkpoint = load_checkpoint(ckpt_path, map_location="cpu")
+        # Refuse a partial (mid-epoch) snapshot: it is not a clean resume point.
+        if checkpoint.get("partial"):
+            raise SystemExit(
+                f"[train] Refusing to resume from a PARTIAL snapshot "
+                f"({ckpt_path.name}): it was saved mid-epoch and does not "
+                f"guarantee a correct resume. Resume from last_checkpoint.pt instead."
+            )
         # Use the config stored in the checkpoint to guarantee architecture match.
         config = checkpoint["config"]
         # Infer the run folder as <run_dir>/checkpoints/<ckpt>.pt -> <run_dir>.
@@ -119,7 +126,9 @@ def main() -> None:
     set_seed(seed, deterministic=True)
 
     logger = setup_logger(run_dir / "logs" / "train.log")
-    csv_logger = MetricsCSVLogger(run_dir / "logs" / "metrics.csv", resume=resuming)
+    csv_logger = MetricsCSVLogger(
+        run_dir / "logs" / "metrics.csv", resume=resuming, logger=logger
+    )
 
     # Persist the exact config actually used (root + logs copies).
     save_config(config, run_dir / "config_used.yaml")
@@ -132,13 +141,13 @@ def main() -> None:
     # Data
     # ------------------------------------------------------------------
     try:
-        train_loader, eval_loader, class_to_idx = build_dataloaders(config, device)
+        train_loader, val_loader, class_to_idx = build_dataloaders(config, device)
     except (FileNotFoundError, ValueError) as exc:
         logger.error(f"Dataset error: {exc}")
         raise
     logger.info(
         f"Train images: {len(train_loader.dataset)} | "
-        f"Eval images: {len(eval_loader.dataset)} | classes: {class_to_idx}"
+        f"Val images: {len(val_loader.dataset)} | classes: {class_to_idx}"
     )
 
     # ------------------------------------------------------------------
@@ -223,23 +232,30 @@ def main() -> None:
         optimizer_center=optimizer_center,
     )
 
-    best = trainer.fit(train_loader, eval_loader, start_epoch=start_epoch, best_acc=best_acc)
+    # Save an initial (epoch=-1) checkpoint for a fresh run so a resume works
+    # even if the first epoch is interrupted before any last_checkpoint exists.
+    if not resuming and not ckpt_manager.has_last():
+        trainer.save_initial_checkpoint()
+
+    best = trainer.fit(train_loader, val_loader, start_epoch=start_epoch, best_acc=best_acc)
     csv_logger.close()
 
     # ------------------------------------------------------------------
     # Final instructions
     # ------------------------------------------------------------------
+    interrupted = getattr(trainer, "interrupted", False)
+    header = "TRAINING INTERRUPTED" if interrupted else "TRAINING FINISHED"
     print("\n" + "=" * 70)
-    print("TRAINING FINISHED")
+    print(header)
     print("=" * 70)
     print(f"Run folder:        {run_dir}")
-    print(f"Best eval acc:     {best:.4f}")
+    print(f"Best val acc:      {best:.4f}")
     print(f"Best model:        {ckpt_manager.best_path}")
     print(f"Last checkpoint:   {ckpt_manager.last_path}")
-    print(f"Metrics CSV:       {run_dir / 'logs' / 'metrics.csv'}")
-    print("\nResume (if interrupted):")
+    print(f"Metrics CSV:       {csv_logger.path}")
+    print("\nResume (from the last completed epoch):")
     print(f"    python train.py --resume {ckpt_manager.last_path}")
-    print("\nEvaluate the best model:")
+    print("\nEvaluate the best model on the TEST set:")
     print(f"    python evaluate.py --checkpoint {ckpt_manager.best_path}")
     print("=" * 70)
 

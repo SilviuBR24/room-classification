@@ -1,14 +1,25 @@
-# ViT-S/16 Indoor-Room Classifier — Supervised Baseline (Step 1)
+# ViT-S/16 Indoor-Room Classifier — Supervised Baseline + Center Loss
 
 A from-scratch Vision Transformer (ViT-S/16) in PyTorch for 6-class indoor
 room classification (`bathroom, bedroom, dining_room, entrance_hall, kitchen,
 living_room`) on a filtered Places365 subset.
 
-> **Scope of this step:** supervised baseline only — robust checkpointing,
-> logging, resume, and evaluation. **Center Loss and pseudo-labeling are NOT
-> implemented yet.** The model already exposes CLS embeddings
-> (`model(x, return_embeddings=True)`), so those stages plug in without
-> architectural changes.
+> **Scope:** supervised baseline **and Center Loss** (Part 2), with robust
+> checkpointing, logging, resume, and evaluation. Center Loss is opt-in via
+> `use_center_loss` in the config. Pseudo-labeling / self-labeling (Part 3) is
+> **not implemented yet** — the model exposes CLS embeddings
+> (`model(x, return_embeddings=True)`), which Center Loss uses and Part 3 will.
+>
+> **Data protocol:** training selects the best model on a **validation** set
+> (`data.val_dir`); `evaluate.py` reports on a held-out **test** set
+> (`data.eval_dir`). If `val_dir` is omitted, validation falls back to the test
+> set (legacy single-split — avoid it for final numbers, it leaks the test set
+> into model selection).
+>
+> **Center Loss note:** the class-center update is coupled to the loss weight,
+> so the *effective* center learning rate is `center_loss_lr * center_loss_weight`.
+> A `center_loss_weight` (lambda) sweep is therefore partly confounded by how
+> fast the centers move.
 
 ## Project layout
 ```
@@ -20,6 +31,7 @@ code/
 ├── src/
 │   ├── dataset.py    # fixed-class-mapping dataset + transforms
 │   ├── vit.py        # from-scratch ViT (patch embed, MHSA, blocks, head)
+│   ├── center_loss.py # Center Loss: learnable per-class centers (Part 2)
 │   ├── trainer.py    # epoch loop, AMP, scheduler, checkpointing
 │   ├── checkpoint.py # save/load: last / best / epoch / interrupted
 │   ├── logger.py     # train.log + metrics.csv
