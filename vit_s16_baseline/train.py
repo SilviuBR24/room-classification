@@ -202,7 +202,12 @@ def main() -> None:
                 optimizer_center.load_state_dict(checkpoint["optimizer_center_state_dict"])
         if checkpoint.get("rng_state") is not None:
             set_rng_state(checkpoint["rng_state"])
-        best_acc = float(checkpoint.get("best_eval_accuracy", 0.0))
+        # Prefer the new key; fall back to the old name for pre-rename checkpoints.
+        best_acc = float(
+            checkpoint.get(
+                "best_val_accuracy", checkpoint.get("best_eval_accuracy", 0.0)
+            )
+        )
         start_epoch = int(checkpoint["epoch"]) + 1  # continue at the NEXT epoch
         logger.info(f"Resumed from epoch {checkpoint['epoch']} -> starting at epoch {start_epoch + 1}. "
                     f"Best acc so far: {best_acc:.4f}")

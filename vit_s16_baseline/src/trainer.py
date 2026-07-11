@@ -192,7 +192,7 @@ class Trainer:
         self.model.eval()
         loss_meter, acc_meter = AverageMeter(), AverageMeter()
 
-        for images, targets in tqdm(loader, desc="Eval", leave=False):
+        for images, targets in tqdm(loader, desc="Val", leave=False):
             images = images.to(self.device, non_blocking=True)
             targets = targets.to(self.device, non_blocking=True)
             with self.autocast_ctx():
@@ -201,7 +201,8 @@ class Trainer:
             loss_meter.update(loss.item(), images.size(0))
             acc_meter.update(accuracy(logits, targets), images.size(0))
 
-        return {"eval_loss": loss_meter.avg, "eval_accuracy": acc_meter.avg}
+        # Keys are named val_* -- this loader is the validation set in fit().
+        return {"val_loss": loss_meter.avg, "val_accuracy": acc_meter.avg}
 
     # -- checkpoint state builder --------------------------------------
     def _build_state(
@@ -223,7 +224,7 @@ class Trainer:
             "optimizer_center_state_dict": (
                 self.optimizer_center.state_dict() if self.use_center_loss else None
             ),
-            "best_eval_accuracy": best_acc,
+            "best_val_accuracy": best_acc,
             "metrics": metrics,
             "config": self.config,
             "seed": self.seed,
@@ -265,14 +266,14 @@ class Trainer:
                 if do_eval:
                     val_metrics = self.evaluate(val_loader)
                 else:
-                    val_metrics = {"eval_loss": None, "eval_accuracy": None}
+                    val_metrics = {"val_loss": None, "val_accuracy": None}
 
                 # Step the LR schedule once per epoch (after this epoch's work).
                 if self.scheduler is not None:
                     self.scheduler.step()
 
                 metrics = {**train_metrics, **val_metrics}
-                val_acc = val_metrics["eval_accuracy"]
+                val_acc = val_metrics["val_accuracy"]
 
                 # Decide "best" BEFORE building the saved state, so
                 # last_checkpoint.pt always carries the up-to-date best_acc.
@@ -294,15 +295,15 @@ class Trainer:
                     train_center_raw=train_metrics["train_center_raw"],
                     train_center_weighted=train_metrics["train_center_weighted"],
                     train_accuracy=train_metrics["train_accuracy"],
-                    val_loss=val_metrics["eval_loss"],
-                    val_accuracy=val_metrics["eval_accuracy"],
+                    val_loss=val_metrics["val_loss"],
+                    val_accuracy=val_metrics["val_accuracy"],
                     learning_rate=current_lr,
                     checkpoint_path=str(last_path),
                 )
 
                 dt = time.time() - t0
                 val_str = (
-                    f"val_loss={val_metrics['eval_loss']:.4f} val_acc={val_acc:.4f}"
+                    f"val_loss={val_metrics['val_loss']:.4f} val_acc={val_acc:.4f}"
                     if val_acc is not None
                     else "val=skipped"
                 )
