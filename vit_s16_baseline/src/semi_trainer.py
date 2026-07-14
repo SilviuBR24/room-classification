@@ -196,6 +196,8 @@ class SelfTrainingTrainer:
                 )
                 global_epoch += 1
 
+            del loader  # drop this round's DataLoader (and its workers) before the next
+
         self.csv.close()
         self.logger.info(f"Self-training complete. Best val accuracy: {best_acc:.4f}")
         return best_acc

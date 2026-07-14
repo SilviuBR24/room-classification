@@ -80,6 +80,10 @@ def _apply_ssl_training_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
     ssl = config.setdefault("ssl", {})
     tcfg = config["training"]
     tcfg["epochs"] = int(ssl.get("rounds", 6)) * int(ssl.get("epochs_per_round", 5))
+    # A warm-started model should usually fine-tune at a gentler LR than the
+    # from-scratch baseline; expose it as ssl.learning_rate (None = keep default).
+    if ssl.get("learning_rate") is not None:
+        tcfg["learning_rate"] = float(ssl["learning_rate"])
     if bool(ssl.get("use_center_loss", True)):
         tcfg["use_center_loss"] = True
         tcfg["center_loss_weight"] = float(ssl.get("center_loss_weight",
@@ -138,6 +142,12 @@ def build_semi_datasets(config: Dict[str, Any]) -> Tuple[Any, Any, Any, Any, Dic
         _subsample_labeled(labeled_train_ds, unlab_infer_ds, unlab_train_ds,
                            int(lpc), int(config["training"]["seed"]))
 
+    # Safety net for the index-alignment invariant the pseudo-labelling relies on:
+    # the eval-view and train-view of the pool must list the same paths in the same
+    # order (so a confident index from inference maps to the same training image).
+    assert [p for p, _ in unlab_infer_ds.samples] == [p for p, _ in unlab_train_ds.samples], \
+        "unlabelled inference/train views are not index-aligned"
+
     val_dir = data.get("val_dir") or data["eval_dir"]
     val_ds = build_dataset(val_dir, config, train=False)
     return labeled_train_ds, unlab_infer_ds, unlab_train_ds, val_ds, labeled_train_ds.class_to_idx
@@ -173,9 +183,10 @@ def main() -> None:
 
     # -- model / optim / loss (mirrors train.py) -----------------------
     model = build_vit_from_config(config["model"]).to(device)
+    warm_ckpt = None
     if args.warmup:
-        ckpt = load_checkpoint(args.warmup, map_location="cpu")
-        model.load_state_dict(ckpt["model_state_dict"])
+        warm_ckpt = load_checkpoint(args.warmup, map_location="cpu")
+        model.load_state_dict(warm_ckpt["model_state_dict"])
         logger.info(f"Warm-started model weights from: {args.warmup}")
     else:
         logger.warning("No --warmup checkpoint given: self-labelling starts from a "
@@ -202,6 +213,13 @@ def main() -> None:
         )
         logger.info(f"Center Loss ENABLED | weight={config['training']['center_loss_weight']} "
                     f"| center_lr={config['training']['center_loss_lr']}")
+        # Restore the LEARNED class centers from the warm-start checkpoint. Without
+        # this the model would resume from center-aligned features but pull them
+        # toward freshly random centers, undoing the warm start. optimizer_center
+        # stays fresh (its SGD has no momentum, so there is no state to carry).
+        if warm_ckpt is not None and warm_ckpt.get("center_loss_state_dict") is not None:
+            center_loss.load_state_dict(warm_ckpt["center_loss_state_dict"])
+            logger.info("Restored Center Loss centers from the warm-start checkpoint.")
 
     ckpt_manager = CheckpointManager(run_dir / "checkpoints")
     trainer = Trainer(

@@ -91,7 +91,7 @@ class Trainer:
         config: Dict[str, Any],
         class_to_idx: Dict[str, int],
         logger: Any,
-        csv_logger: MetricsCSVLogger,
+        csv_logger: Optional[MetricsCSVLogger],
         ckpt_manager: CheckpointManager,
         center_loss: Optional[nn.Module] = None,
         optimizer_center: Optional[torch.optim.Optimizer] = None,
