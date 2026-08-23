@@ -67,6 +67,26 @@ def select_confident(conf: np.ndarray, tau: float) -> np.ndarray:
     return conf >= float(tau)
 
 
+def threshold_for_coverage(conf: np.ndarray, target_coverage: float) -> float:
+    """Return the threshold that selects (about) `target_coverage` of the pool.
+
+    A FIXED tau makes coverage an *outcome*: with a weak model almost nothing
+    clears a high bar, so the unlabelled pool goes unused. Deriving tau from a
+    quantile of this round's confidence distribution flips that around and makes
+    coverage the *controlled variable* -- "always take the most confident X%" --
+    which is what lets us trace the precision/coverage trade-off curve.
+
+    Recomputed every round, so the bar naturally rises as the model sharpens.
+    """
+    target = float(target_coverage)
+    if not 0.0 < target < 1.0:
+        raise ValueError(f"target_coverage must be in (0, 1), got {target}")
+    if conf.size == 0:
+        return float("inf")
+    # The (1 - target) quantile: everything above it is the top `target` share.
+    return float(np.quantile(conf, 1.0 - target))
+
+
 def pseudo_label_stats(
     conf: np.ndarray, pred: np.ndarray, truth: np.ndarray, tau: float
 ) -> Dict[str, float]:
