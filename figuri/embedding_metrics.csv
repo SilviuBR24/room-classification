@@ -1,0 +1,3 @@
+label,n_samples,dim,intra_mean,inter_mean,inter_intra,silhouette,davies_bouldin,run_dir
+baseline (lambda=0),600,384,8.203130722045898,7.907053470611572,0.9639067983351016,0.03623536229133606,3.2247014910708653,C:/Users/gsilv/AppData/Local/Temp/claude/C--Users-gsilv-Desktop-Facultate-Master-Reasearch-Disertatie-room-classification/a6df2d39-b063-4d70-9902-16a80b7f5993/scratchpad/runs/2026-07-11_17-49_vit_s16_3200_baseline
+center loss (lambda=0.0005),600,384,3.81427001953125,3.388897657394409,0.8884786971140768,0.026048002764582634,3.3382627069105,C:/Users/gsilv/AppData/Local/Temp/claude/C--Users-gsilv-Desktop-Facultate-Master-Reasearch-Disertatie-room-classification/a6df2d39-b063-4d70-9902-16a80b7f5993/scratchpad/runs/2026-07-11_19-45_vit_s16_3200_center_l00005

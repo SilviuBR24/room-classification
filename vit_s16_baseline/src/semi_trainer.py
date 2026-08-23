@@ -33,7 +33,12 @@ from typing import Any, Dict, Optional
 import torch
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
-from src.pseudo_label import build_pseudo_subset, infer_confidence, pseudo_label_stats
+from src.pseudo_label import (
+    build_pseudo_subset,
+    infer_confidence,
+    pseudo_label_stats,
+    threshold_for_coverage,
+)
 from src.trainer import Trainer
 
 
@@ -42,7 +47,7 @@ class SelfTrainingMetricsLogger:
 
     FIELDS = [
         "round", "epoch",
-        "num_pseudo", "coverage", "pseudo_accuracy", "mean_conf",
+        "num_pseudo", "coverage", "pseudo_accuracy", "mean_conf", "tau_used",
         "train_loss", "train_ce", "train_center_raw", "train_accuracy",
         "val_loss", "val_accuracy",
         "learning_rate", "checkpoint_path",
@@ -95,6 +100,11 @@ class SelfTrainingTrainer:
         self.tau = float(ssl_cfg.get("tau", 0.95))
         self.rounds = int(ssl_cfg.get("rounds", 6))
         self.epochs_per_round = int(ssl_cfg.get("epochs_per_round", 5))
+        # When set (0 < x < 1), the threshold is derived each round so that this
+        # fraction of the pool is pseudo-labelled, and `tau` is ignored. Makes
+        # coverage the controlled variable instead of an outcome.
+        tc = ssl_cfg.get("target_coverage")
+        self.target_coverage = float(tc) if tc else None
 
         tcfg = trainer.config["training"]
         self.batch_size = int(tcfg["batch_size"])
@@ -138,9 +148,11 @@ class SelfTrainingTrainer:
         init = t.evaluate(self.val_loader)
         best_acc = float(init["val_accuracy"])
         self._save_best_and_last(-1, {**init}, best_acc, is_best=True)
+        mode = (f"target_coverage={self.target_coverage} (tau derived per round)"
+                if self.target_coverage else f"tau={self.tau} (fixed)")
         self.logger.info(
             f"Self-training start | warm val_acc={best_acc:.4f} | "
-            f"tau={self.tau} rounds={self.rounds} epochs/round={self.epochs_per_round}"
+            f"{mode} rounds={self.rounds} epochs/round={self.epochs_per_round}"
         )
 
         global_epoch = 0
@@ -149,15 +161,19 @@ class SelfTrainingTrainer:
             conf, pred, truth = infer_confidence(
                 t.model, self.unlabeled_infer_loader, t.device, t.autocast_ctx
             )
-            stats = pseudo_label_stats(conf, pred, truth, self.tau)
+            # Fixed bar, or one derived from this round's confidence distribution
+            # so a set fraction of the pool always gets pseudo-labelled.
+            tau_round = (threshold_for_coverage(conf, self.target_coverage)
+                         if self.target_coverage else self.tau)
+            stats = pseudo_label_stats(conf, pred, truth, tau_round)
             self.logger.info(
                 f"Round {r + 1}/{self.rounds} | self-label: "
                 f"{stats['n_selected']}/{stats['n_total']} kept "
-                f"(coverage={stats['coverage']:.3f}, tau={self.tau}) | "
+                f"(coverage={stats['coverage']:.3f}, tau={tau_round:.4f}) | "
                 f"pseudo_acc={stats['pseudo_accuracy']:.4f} | "
                 f"mean_conf={stats['mean_conf']:.3f}"
             )
-            pseudo_subset = build_pseudo_subset(self.unlabeled_train_ds, conf, pred, self.tau)
+            pseudo_subset = build_pseudo_subset(self.unlabeled_train_ds, conf, pred, tau_round)
             loader = self._combined_loader(pseudo_subset)
 
             # 2) train E epochs on labelled + pseudo-labelled
@@ -183,6 +199,7 @@ class SelfTrainingTrainer:
                     round=r + 1, epoch=global_epoch + 1,
                     num_pseudo=stats["n_selected"], coverage=stats["coverage"],
                     pseudo_accuracy=stats["pseudo_accuracy"], mean_conf=stats["mean_conf"],
+                    tau_used=float(tau_round),
                     train_loss=tm["train_loss"], train_ce=tm["train_ce"],
                     train_center_raw=tm["train_center_raw"], train_accuracy=tm["train_accuracy"],
                     val_loss=vm["val_loss"], val_accuracy=val_acc,
