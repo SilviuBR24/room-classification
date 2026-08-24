@@ -71,8 +71,19 @@ training:
   # center_loss_lr * center_loss_weight. Changing lambda therefore also
   # changes how fast the centers move -- a known coupling, so the lambda
   # sweep is partly confounded by it. This is a valid Center Loss variant.
+  #
+  # RESULT OF THE CLEAN SWEEP (validation-selected, test-reported): Center Loss
+  # did NOT improve accuracy at any weight tested. Validation accuracy falls
+  # monotonically as lambda rises -- 0.5683 at lambda=0, then 0.5628, 0.5594,
+  # 0.5206 for 0.0005, 0.001, 0.01 -- and test accuracy follows the same trend.
+  # The default below therefore stays OFF, and the value 0.0005 is kept only
+  # because it is the least harmful setting, used for the Part-3 experiments
+  # where the specification requires Center Loss to be active.
+  # (An earlier comment here called 0.001 "best in our sweep". That came from
+  # the superseded protocol, which selected the best epoch on the test set and
+  # inflated the numbers. It is not supported by the corrected results.)
   use_center_loss: false         # false = plain supervised baseline
-  center_loss_weight: 0.001      # lambda: weight of the center term (best in our sweep)
+  center_loss_weight: 0.0005     # lambda: weight of the center term
   center_loss_lr: 0.5            # base LR for the centers (effective = this * lambda)
 
 paths:

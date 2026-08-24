@@ -167,17 +167,36 @@ def append_result(results_csv: Path, record: Dict[str, Any]) -> None:
         w.writerow({k: record.get(k, "") for k in fields})
 
 
+def _val_key(record: Dict[str, Any]) -> float:
+    """Sort key: validation accuracy, the only legitimate selection criterion.
+
+    Runs without a recorded validation accuracy sort last rather than crashing.
+    """
+    value = record.get("best_val_acc")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("-inf")
+
+
 def print_summary(records: List[Dict[str, Any]]) -> None:
-    """Ranked table of every finished run against the baseline."""
+    """Ranked table of every finished run against the baseline.
+
+    Ranked by VALIDATION accuracy, deliberately. Test accuracy is reported in
+    its own column but must never drive the choice of configuration: picking the
+    setting with the best test score is selection-on-test, the very mistake that
+    invalidated the first phase of this project. The ordering here enforces the
+    correct discipline instead of leaving it to the reader.
+    """
     print("\n" + "=" * 78)
-    print("SWEEP SUMMARY -- ranked by test accuracy")
+    print("SWEEP SUMMARY -- ranked by VALIDATION accuracy (the selection criterion)")
     print("=" * 78)
     print(f"{'tag':<20} {'warm-start':<10} {'coverage':<10} "
           f"{'val':<8} {'test':<8} {'vs baseline':<12}")
     print("-" * 78)
 
     done = [r for r in records if r.get("test_acc") is not None]
-    for r in sorted(done, key=lambda x: -float(x["test_acc"])):
+    for r in sorted(done, key=lambda x: -_val_key(x)):
         cov = f"{float(r['coverage']):.0%}" if r.get("coverage") else f"tau={r.get('tau', 0.95)}"
         delta = float(r["test_acc"]) - BASELINE_TEST_ACC
         mark = "  <-- BEATS IT" if delta > 0 else ""
@@ -192,19 +211,28 @@ def print_summary(records: List[Dict[str, Any]]) -> None:
           f"{'0.5628':<8} {CENTER_TEST_ACC:.4f}   {CENTER_TEST_ACC - BASELINE_TEST_ACC:+.4f}")
     print("=" * 78)
 
-    winners = [r for r in done if float(r["test_acc"]) > BASELINE_TEST_ACC]
-    if winners:
-        best = max(winners, key=lambda x: float(x["test_acc"]))
-        print(f"\nBest setting beats the baseline: {best['tag']} at "
-              f"{float(best['test_acc']):.4f} "
-              f"({float(best['test_acc']) - BASELINE_TEST_ACC:+.4f}).")
-        print("Confirm it is a real gain, not noise: the val accuracy should move in "
-              "the same direction (600 test images means 1pp is ~6 images).")
+    # The winner is chosen on VALIDATION, then its test score is reported --
+    # never the other way round.
+    if done:
+        best = max(done, key=_val_key)
+        best_test = float(best["test_acc"])
+        delta = best_test - BASELINE_TEST_ACC
+        print(f"\nSelected on validation: {best['tag']} "
+              f"(val {_val_key(best):.4f}).")
+        print(f"Its test accuracy is {best_test:.4f} "
+              f"({delta:+.4f} versus the baseline).")
+        if delta > 0:
+            print("It beats the baseline on test as well, and validation agrees in "
+                  "direction -- the strongest evidence available here.")
+        else:
+            print("It does not beat the baseline on test. That is a legitimate "
+                  "result and must be reported as such; do not go looking for a "
+                  "different row with a better test score.")
+        print("Keep the magnitude in perspective: 600 test images means one "
+              "percentage point is six images, and the standard error of a "
+              "proportion at this accuracy is about two points.")
     else:
-        print("\nNo setting beat the baseline. That is a legitimate result: it says "
-              "self-labelling could not extract extra signal from this pool at these "
-              "settings. Report the trade-off curve (coverage vs pseudo-accuracy vs "
-              "test accuracy) as the finding.")
+        print("\nNo configuration completed, so there is nothing to rank.")
 
 
 # ----------------------------------------------------------------------
