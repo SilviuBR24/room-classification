@@ -1,0 +1,80 @@
+# ============================================================
+# ResNet-18 CONVOLUTIONAL BASELINE
+# 6-class indoor room classification, Places365 subset
+# ------------------------------------------------------------
+# The comparison this supports: ResNet-18 versus ViT-S/16, each
+# with and without Center Loss. For that comparison to mean
+# anything, EVERY training condition below is deliberately kept
+# identical to the ViT experiments -- same split, same optimizer,
+# same LR schedule, same epochs, same lambda, same seed. The only
+# thing that differs is the architecture.
+#
+# `compare_resnet18.py` overrides `run_name` and `use_center_loss`
+# per variant; everything else is taken from this file unchanged.
+# ============================================================
+
+run_name: "resnet18_crossentropy"   # overridden per variant by the runner
+
+model:
+  # ResNet-18 from torchvision, architecture only -- weights=None, so it is
+  # trained from scratch exactly like the ViT. No pre-training anywhere.
+  #
+  # `arch` is recorded so that config_used.yaml (copied into every run folder
+  # and stored inside every checkpoint) states unambiguously which architecture
+  # produced the results. This matters because the shared train.py prints a
+  # hard-coded "Model: ViT-S/16" line in train.log regardless of what was built
+  # -- see the README. The saved config, the run folder name and the parameter
+  # count (11,179,590 for ResNet-18 vs 21,691,014 for ViT-S/16) are the
+  # authoritative record.
+  arch: resnet18
+  image_size: 256                   # used by the shared dataset transforms
+  embed_dim: 512                    # ResNet-18 feature width; Center Loss is sized from this
+  num_classes: 6
+
+data:
+  # Identical split to the ViT experiments: train fits the weights, val selects
+  # the best epoch, eval is the held-out test set used only for final reporting.
+  train_dir: "/content/dataset_split/train"
+  val_dir:   "/content/dataset_split/val"
+  eval_dir:  "/content/dataset_split/eval"
+  # Fixed, explicit class order. Index = position in this list.
+  class_names:
+    - bathroom
+    - bedroom
+    - dining_room
+    - entrance_hall
+    - kitchen
+    - living_room
+  norm_mean: [0.485, 0.456, 0.406]
+  norm_std:  [0.229, 0.224, 0.225]
+
+training:
+  # These values mirror the ViT runs on purpose. Do not tune them for ResNet:
+  # a tuned CNN against an untuned transformer would not be a fair comparison,
+  # and the point here is to isolate the effect of the architecture.
+  epochs: 50
+  batch_size: 64
+  learning_rate: 0.0003
+  weight_decay: 0.05
+  seed: 42
+  num_workers: 2                    # the runner raises this to os.cpu_count() on Colab
+  use_amp: true
+  scheduler: "cosine"
+  warmup_epochs: 5
+  label_smoothing: 0.1
+  grad_clip: 1.0
+  save_epoch_checkpoints: false
+  eval_every: 1
+
+  # --- Center Loss (Wen et al. 2016) ----------------------------------
+  # Toggled per variant by the runner. lambda = 0.0005 is the value that
+  # performed best in the ViT sweep, kept identical here so the two
+  # architectures are compared under the same setting.
+  use_center_loss: false
+  center_loss_weight: 0.0005
+  center_loss_lr: 0.5
+
+paths:
+  # Run folders (checkpoints / logs / outputs) are created under here.
+  # On Colab this should point at Drive so results survive disconnects.
+  output_root: "/content/drive/MyDrive/Dissertation_Thesis/dissertation_runs"
