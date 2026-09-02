@@ -47,7 +47,7 @@ CLASSES = ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
 EXPECTED = {"train": 28709, "val": 3589, "eval": 3589}
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_DST = HERE.parent.parent / "datasets" / "fer2013"
+DEFAULT_DST = HERE.parent.parent / "dataset_FER" / "fer2013"
 
 
 def parse_args() -> argparse.Namespace:

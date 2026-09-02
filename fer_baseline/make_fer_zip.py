@@ -20,8 +20,8 @@ import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_SRC = HERE.parent.parent / "datasets" / "fer2013"
-DEFAULT_OUT = HERE.parent.parent / "datasets" / "fer2013.zip"
+DEFAULT_SRC = HERE.parent.parent / "dataset_FER" / "fer2013"
+DEFAULT_OUT = HERE.parent.parent / "dataset_FER" / "fer2013.zip"
 
 
 def parse_args() -> argparse.Namespace:

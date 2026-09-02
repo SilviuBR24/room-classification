@@ -1,0 +1,98 @@
+# ============================================================
+# FACIAL EXPRESSION RECOGNITION -- FER2013, 7 classes
+# ------------------------------------------------------------
+# A second setting for the same Center Loss comparison. The room
+# experiments showed that Center Loss compacts the representation
+# without improving separability on a Vision Transformer, and
+# improves the geometry but not the accuracy on ResNet-18. Facial
+# expressions test whether that holds on the domain Center Loss
+# was originally proposed for.
+#
+# Every training value below is deliberately identical to the room
+# experiments so the two settings differ only in the task. The one
+# exception is image_size, which cannot be identical: FER2013 is
+# 48x48 while the room images are 256x256. See calibrate_fer.py.
+#
+# `compare_fer.py` overrides `run_name` and `use_center_loss` per
+# variant; everything else is taken from this file unchanged.
+# ============================================================
+
+run_name: "fer_crossentropy"        # overridden per variant by the runner
+
+model:
+  # Guard value: the builder refuses any config that does not declare this,
+  # so a room config cannot be run through this project by accident.
+  arch: resnet18_fer
+  # FER2013 is 48x48 natively. ResNet-18 divides its input by 32, so a 48-pixel
+  # input leaves a 2x2 map at the pooling layer. Upsampling adds no information
+  # but gives the fixed stem something to work with. Chosen by measurement,
+  # not assumption -- run calibrate_fer.py before committing to a value.
+  image_size: 96
+  embed_dim: 512                    # ResNet-18 feature width; Center Loss is sized from this
+  num_classes: 7
+
+data:
+  # Written by download_fer2013.py. The three roles match the room experiments:
+  # train fits the weights, val selects the best epoch, eval is held out and
+  # read only for final reporting.
+  train_dir: "/content/fer2013/train"
+  val_dir:   "/content/fer2013/val"
+  eval_dir:  "/content/fer2013/eval"
+  # Fixed, explicit class order. Index = position in this list.
+  #
+  # NOTE: unlike the room dataset, these classes are heavily imbalanced --
+  # 7,215 training images for happy against 436 for disgust, a ratio of about
+  # 16 to 1. Overall accuracy alone is therefore misleading here: a model that
+  # never predicts disgust loses only about 1.5 percent of it. Per-class
+  # accuracy and macro-averaged F1 must be reported alongside.
+  class_names:
+    - angry
+    - disgust
+    - fear
+    - happy
+    - sad
+    - surprise
+    - neutral
+  # ImageNet statistics, as in the room experiments. FER2013 images are
+  # greyscale content stored on three identical channels, so the three
+  # normalisation constants act on the same values; this is harmless and keeps
+  # the preprocessing identical across the two settings.
+  norm_mean: [0.485, 0.456, 0.406]
+  norm_std:  [0.229, 0.224, 0.225]
+
+training:
+  # Identical to the room experiments on purpose. Do not tune these: the
+  # comparison of interest is Cross-Entropy against Cross-Entropy plus Center
+  # Loss within this task, and both variants must see the same conditions.
+  epochs: 50
+  batch_size: 64
+  learning_rate: 0.0003
+  weight_decay: 0.05
+  seed: 42
+  num_workers: 2                    # the runner raises this to os.cpu_count() on Colab
+  use_amp: true
+  scheduler: "cosine"
+  warmup_epochs: 5
+  label_smoothing: 0.1
+  grad_clip: 1.0
+  save_epoch_checkpoints: false
+  eval_every: 1
+
+  # --- Center Loss (Wen et al. 2016) ----------------------------------
+  # Toggled per variant by the runner. lambda = 0.0005 is the value used for
+  # the room comparison, kept identical here.
+  #
+  # Worth watching on this dataset: the implemented variant normalises the
+  # centre update by the mini-batch size rather than by the number of samples
+  # of that class in the batch. With classes this imbalanced, the centre for
+  # disgust is updated far less often than the centre for happy, so the
+  # deviation from the original algorithm is measurable here in a way it was
+  # not on the balanced room dataset.
+  use_center_loss: false
+  center_loss_weight: 0.0005
+  center_loss_lr: 0.5
+
+paths:
+  # Run folders (checkpoints / logs / outputs) are created under here.
+  # On Colab this should point at Drive so results survive disconnects.
+  output_root: "/content/drive/MyDrive/Dissertation_Thesis/dissertation_runs"
