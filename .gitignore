@@ -208,3 +208,8 @@ __marimo__/
 vit_s16_baseline/mnist_data/
 resnet18_baseline/config_used_*.yaml
 resnet18_baseline/config_resnet18_colab.yaml
+
+# Datasets and their intermediate downloads (too large for the repository;
+# the archives live in Drive and are fetched by the Colab notebooks).
+dataset.zip
+fer_baseline/_parquet_cache/
