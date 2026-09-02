@@ -4,9 +4,17 @@
 # A second setting for the same Center Loss comparison. The room
 # experiments showed that Center Loss compacts the representation
 # without improving separability on a Vision Transformer, and
-# improves the geometry but not the accuracy on ResNet-18. Facial
-# expressions test whether that holds on the domain Center Loss
-# was originally proposed for.
+# improves the geometry but not the accuracy on ResNet-18. This is
+# a further test of that finding on a related but distinct task.
+#
+# Note what this experiment does NOT claim. Center Loss was
+# proposed for face IDENTITY recognition -- discriminating between
+# people, across thousands of visually coherent classes. Expression
+# recognition is a different problem: seven classes, large
+# variation within each one across different identities, and a
+# discriminative signal that is a subtle change of facial geometry.
+# FER2013 is therefore a related task on face images, not the
+# original domain of the method.
 #
 # Every training value below is deliberately identical to the room
 # experiments so the two settings differ only in the task. The one

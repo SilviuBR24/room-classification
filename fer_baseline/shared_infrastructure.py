@@ -9,9 +9,14 @@ Why this experiment borrows rather than copies
 This folder repeats the Center Loss comparison on a second task: facial
 expression recognition. The point of repeating it is to find out whether the
 behaviour observed on the room dataset -- Center Loss compacting the
-representation without improving separability -- holds on a task where the
-method is known to work, since Center Loss was originally proposed for face
-recognition.
+representation without improving separability -- also appears on an unrelated
+dataset, or whether it was specific to indoor scenes.
+
+Note that this is a related task, not the original one. Center Loss was proposed
+for face identity recognition, which differs from expression recognition in the
+number of classes, in how coherent each class is, and in what distinguishes
+them. FER2013 tests the hypothesis further; it does not reproduce the setting
+the method was designed for.
 
 That question can only be answered if the training procedure is the same one
 used for the room experiments. A second copy of the training loop would drift,

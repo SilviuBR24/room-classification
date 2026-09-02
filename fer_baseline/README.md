@@ -13,10 +13,19 @@ transformer the space is rescaled rather than reorganised. The conclusion drawn
 was that Center Loss can only organise a representation that is already
 adequate.
 
-Facial expressions test that conclusion where it should hold most strongly:
-Center Loss was proposed for face recognition in the first place. A positive
-result here supports the interpretation; a negative one is equally reportable
-and would mean the room outcome was not specific to indoor scenes.
+FER2013 tests that conclusion on a second, unrelated dataset. A positive result
+supports the interpretation; a negative one is equally reportable and would mean
+the room outcome was not specific to indoor scenes.
+
+**What this experiment does not claim.** Center Loss was proposed for face
+*identity* recognition — telling people apart, across thousands of classes each
+of which is visually coherent. Expression recognition is a different problem:
+seven classes, wide variation within each one across different identities, and a
+discriminative signal that is a subtle change of facial geometry rather than a
+stable appearance. FER2013 is a related task on face images, not the original
+domain of the method, and the experiment should be read as a further test of the
+hypothesis rather than as a reproduction of the setting Center Loss was designed
+for.
 
 ## Get the data
 
