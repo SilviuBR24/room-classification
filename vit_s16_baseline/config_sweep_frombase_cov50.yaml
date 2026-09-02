@@ -1,0 +1,55 @@
+data:
+  class_names:
+  - bathroom
+  - bedroom
+  - dining_room
+  - entrance_hall
+  - kitchen
+  - living_room
+  eval_dir: C:/Users/gsilv/AppData/Local/Temp/claude/C--Users-gsilv-Desktop-Facultate-Master-Reasearch-Disertatie-room-classification/a6df2d39-b063-4d70-9902-16a80b7f5993/scratchpad\smoke_ds\val
+  norm_mean:
+  - 0.485
+  - 0.456
+  - 0.406
+  norm_std:
+  - 0.229
+  - 0.224
+  - 0.225
+  train_dir: C:/Users/gsilv/AppData/Local/Temp/claude/C--Users-gsilv-Desktop-Facultate-Master-Reasearch-Disertatie-room-classification/a6df2d39-b063-4d70-9902-16a80b7f5993/scratchpad\smoke_ds\train
+  val_dir: C:/Users/gsilv/AppData/Local/Temp/claude/C--Users-gsilv-Desktop-Facultate-Master-Reasearch-Disertatie-room-classification/a6df2d39-b063-4d70-9902-16a80b7f5993/scratchpad\smoke_ds\val
+model:
+  attn_dropout: 0.0
+  depth: 2
+  dropout: 0.0
+  embed_dim: 96
+  image_size: 64
+  in_channels: 3
+  mlp_ratio: 2.0
+  num_classes: 6
+  num_heads: 3
+  patch_size: 16
+  qkv_bias: true
+paths:
+  output_root: C:/Users/gsilv/AppData/Local/Temp/claude/C--Users-gsilv-Desktop-Facultate-Master-Reasearch-Disertatie-room-classification/a6df2d39-b063-4d70-9902-16a80b7f5993/scratchpad\smoke_runs
+run_name: vit_s16_sweep_frombase_cov50
+ssl:
+  center_loss_lr: 0.5
+  center_loss_weight: 0.0005
+  epochs_per_round: 1
+  labeled_per_class: null
+  rounds: 2
+  target_coverage: 0.5
+  tau: 0.95
+  unlabeled_dir: C:/Users/gsilv/AppData/Local/Temp/claude/C--Users-gsilv-Desktop-Facultate-Master-Reasearch-Disertatie-room-classification/a6df2d39-b063-4d70-9902-16a80b7f5993/scratchpad\smoke_ds\unlabeled
+  use_center_loss: true
+training:
+  batch_size: 4
+  epochs: 1
+  label_smoothing: 0.0
+  learning_rate: 0.0003
+  num_workers: 0
+  scheduler: cosine
+  seed: 42
+  use_amp: false
+  warmup_epochs: 0
+  weight_decay: 0.05

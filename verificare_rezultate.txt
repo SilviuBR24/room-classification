@@ -1,0 +1,762 @@
+==============================================================================
+RAW EVALUATION ARTEFACTS -- exported for independent verification
+==============================================================================
+Exported: 2026-08-24 11:32
+Source:   G:/My Drive/Dissertation_Thesis/dissertation_runs
+
+Every number reported in the dissertation should be traceable to one of
+the blocks below. These are copies of the files written by evaluate.py at
+the end of each run -- nothing here is recomputed or summarised by hand.
+
+Note: some runs belong to the early, superseded protocol, in which the
+best model was selected on the test set. Those are labelled where the run
+name makes it clear (the 3500-image runs). The reported thesis numbers
+come from the 3200/300/1500/100 split runs.
+
+##############################################################################
+# RUN: 2026-06-27_10-54_vit_s16_baseline_5000imgs
+# evaluation: eval_2026-06-28_14-55-55
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-06-27_10-54_vit_s16_baseline/checkpoints/best_model.pt
+Eval dir:   /content/room-classification/dataset/eval
+Images:     600
+
+Overall accuracy: 0.6450
+
+Per-class accuracy:
+  bathroom       : 0.8100
+  bedroom        : 0.5800
+  dining_room    : 0.6600
+  entrance_hall  : 0.7400
+  kitchen        : 0.7000
+  living_room    : 0.3800
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.8100    0.8100    0.8100       100
+      bedroom     0.6237    0.5800    0.6010       100
+  dining_room     0.5946    0.6600    0.6256       100
+entrance_hall     0.7048    0.7400    0.7220       100
+      kitchen     0.6195    0.7000    0.6573       100
+  living_room     0.4872    0.3800    0.4270       100
+
+     accuracy                         0.6450       600
+    macro avg     0.6399    0.6450    0.6405       600
+ weighted avg     0.6399    0.6450    0.6405       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,81,4,0,4,9,2
+bedroom,6,58,6,9,6,15
+dining_room,3,7,66,6,7,11
+entrance_hall,0,5,10,74,7,4
+kitchen,4,5,10,3,70,8
+living_room,6,14,19,9,14,38
+
+##############################################################################
+# RUN: 2026-06-29_08-38_vit_s16_3500
+# evaluation: eval_2026-07-01_15-13-06
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-06-29_08-38_vit_s16_3500/checkpoints/best_model.pt
+Eval dir:   /content/room-classification/dataset/eval
+Images:     600
+
+Overall accuracy: 0.5750
+
+Per-class accuracy:
+  bathroom       : 0.7800
+  bedroom        : 0.4700
+  dining_room    : 0.5100
+  entrance_hall  : 0.7000
+  kitchen        : 0.6300
+  living_room    : 0.3600
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7573    0.7800    0.7685       100
+      bedroom     0.6026    0.4700    0.5281       100
+  dining_room     0.5604    0.5100    0.5340       100
+entrance_hall     0.6306    0.7000    0.6635       100
+      kitchen     0.4922    0.6300    0.5526       100
+  living_room     0.4045    0.3600    0.3810       100
+
+     accuracy                         0.5750       600
+    macro avg     0.5746    0.5750    0.5713       600
+ weighted avg     0.5746    0.5750    0.5713       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,78,4,0,4,12,2
+bedroom,9,47,5,12,10,17
+dining_room,2,6,51,7,18,16
+entrance_hall,2,2,11,70,9,6
+kitchen,5,8,7,5,63,12
+living_room,7,11,17,13,16,36
+
+##############################################################################
+# RUN: 2026-07-01_15-44_vit_s16_3500_center
+# evaluation: eval_2026-07-07_15-40-08
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-01_15-44_vit_s16_3500_center/checkpoints/best_model.pt
+Eval dir:   /content/room-classification/dataset/eval
+Images:     600
+
+Overall accuracy: 0.5333
+
+Per-class accuracy:
+  bathroom       : 0.7400
+  bedroom        : 0.4400
+  dining_room    : 0.4300
+  entrance_hall  : 0.6600
+  kitchen        : 0.6200
+  living_room    : 0.3100
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.6852    0.7400    0.7115       100
+      bedroom     0.5570    0.4400    0.4916       100
+  dining_room     0.5972    0.4300    0.5000       100
+entrance_hall     0.5500    0.6600    0.6000       100
+      kitchen     0.4397    0.6200    0.5145       100
+  living_room     0.3875    0.3100    0.3444       100
+
+     accuracy                         0.5333       600
+    macro avg     0.5361    0.5333    0.5270       600
+ weighted avg     0.5361    0.5333    0.5270       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,74,8,0,2,13,3
+bedroom,12,44,4,11,14,15
+dining_room,3,8,43,11,18,17
+entrance_hall,4,3,8,66,14,5
+kitchen,6,5,7,11,62,9
+living_room,9,11,10,19,20,31
+
+##############################################################################
+# RUN: 2026-07-07_16-06_vit_s16_3500_center_l0001
+# evaluation: eval_2026-07-11_08-46-50
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-07_16-06_vit_s16_3500_center_l0001/checkpoints/best_model.pt
+Eval dir:   /content/room-classification/dataset/eval
+Images:     600
+
+Overall accuracy: 0.6067
+
+Per-class accuracy:
+  bathroom       : 0.7600
+  bedroom        : 0.4500
+  dining_room    : 0.6500
+  entrance_hall  : 0.7200
+  kitchen        : 0.7100
+  living_room    : 0.3500
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.8085    0.7600    0.7835       100
+      bedroom     0.6164    0.4500    0.5202       100
+  dining_room     0.5752    0.6500    0.6103       100
+entrance_hall     0.6667    0.7200    0.6923       100
+      kitchen     0.5547    0.7100    0.6228       100
+  living_room     0.4167    0.3500    0.3804       100
+
+     accuracy                         0.6067       600
+    macro avg     0.6064    0.6067    0.6016       600
+ weighted avg     0.6064    0.6067    0.6016       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,76,7,1,5,9,2
+bedroom,7,45,8,10,9,21
+dining_room,2,7,65,2,12,12
+entrance_hall,0,3,14,72,7,4
+kitchen,3,2,9,5,71,10
+living_room,6,9,16,14,20,35
+
+##############################################################################
+# RUN: 2026-07-11_09-12_vit_s16_3500_center_l00005
+# evaluation: eval_2026-07-11_11-53-50
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-11_09-12_vit_s16_3500_center_l00005/checkpoints/best_model.pt
+Eval dir:   /content/room-classification/dataset/eval
+Images:     600
+
+Overall accuracy: 0.6117
+
+Per-class accuracy:
+  bathroom       : 0.7800
+  bedroom        : 0.5000
+  dining_room    : 0.6200
+  entrance_hall  : 0.7700
+  kitchen        : 0.6500
+  living_room    : 0.3500
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7879    0.7800    0.7839       100
+      bedroom     0.7143    0.5000    0.5882       100
+  dining_room     0.5391    0.6200    0.5767       100
+entrance_hall     0.6311    0.7700    0.6937       100
+      kitchen     0.5417    0.6500    0.5909       100
+  living_room     0.4730    0.3500    0.4023       100
+
+     accuracy                         0.6117       600
+    macro avg     0.6145    0.6117    0.6060       600
+ weighted avg     0.6145    0.6117    0.6060       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,78,2,2,5,12,1
+bedroom,10,50,5,10,9,16
+dining_room,3,5,62,10,9,11
+entrance_hall,0,0,11,77,6,6
+kitchen,3,4,15,8,65,5
+living_room,5,9,20,12,19,35
+
+##############################################################################
+# RUN: 2026-07-11_17-49_vit_s16_3200_baseline
+# evaluation: eval_2026-07-11_19-45-35
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-11_17-49_vit_s16_3200_baseline/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5633
+
+Per-class accuracy:
+  bathroom       : 0.7200
+  bedroom        : 0.4500
+  dining_room    : 0.4900
+  entrance_hall  : 0.7000
+  kitchen        : 0.7200
+  living_room    : 0.3000
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7347    0.7200    0.7273       100
+      bedroom     0.6081    0.4500    0.5172       100
+  dining_room     0.4949    0.4900    0.4925       100
+entrance_hall     0.6604    0.7000    0.6796       100
+      kitchen     0.5217    0.7200    0.6050       100
+  living_room     0.3529    0.3000    0.3243       100
+
+     accuracy                         0.5633       600
+    macro avg     0.5621    0.5633    0.5577       600
+ weighted avg     0.5621    0.5633    0.5577       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,72,5,0,4,14,5
+bedroom,13,45,8,8,6,20
+dining_room,1,6,49,8,22,14
+entrance_hall,0,2,15,70,8,5
+kitchen,4,3,4,6,72,11
+living_room,8,13,23,10,16,30
+
+##############################################################################
+# RUN: 2026-07-11_19-45_vit_s16_3200_center_l00005
+# evaluation: eval_2026-07-11_21-44-22
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-11_19-45_vit_s16_3200_center_l00005/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5500
+
+Per-class accuracy:
+  bathroom       : 0.7200
+  bedroom        : 0.4700
+  dining_room    : 0.5800
+  entrance_hall  : 0.6700
+  kitchen        : 0.5500
+  living_room    : 0.3100
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7059    0.7200    0.7129       100
+      bedroom     0.6528    0.4700    0.5465       100
+  dining_room     0.5133    0.5800    0.5446       100
+entrance_hall     0.5776    0.6700    0.6204       100
+      kitchen     0.4545    0.5500    0.4977       100
+  living_room     0.4079    0.3100    0.3523       100
+
+     accuracy                         0.5500       600
+    macro avg     0.5520    0.5500    0.5457       600
+ weighted avg     0.5520    0.5500    0.5457       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,72,5,1,6,14,2
+bedroom,12,47,7,10,11,13
+dining_room,2,7,58,7,15,11
+entrance_hall,2,1,15,67,10,5
+kitchen,7,1,12,11,55,14
+living_room,7,11,20,15,16,31
+
+##############################################################################
+# RUN: 2026-07-12_09-27_vit_s16_3200_center_l0001
+# evaluation: eval_2026-07-12_11-25-21
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-12_09-27_vit_s16_3200_center_l0001/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5400
+
+Per-class accuracy:
+  bathroom       : 0.7600
+  bedroom        : 0.4300
+  dining_room    : 0.4800
+  entrance_hall  : 0.6700
+  kitchen        : 0.6000
+  living_room    : 0.3000
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7103    0.7600    0.7343       100
+      bedroom     0.5375    0.4300    0.4778       100
+  dining_room     0.4364    0.4800    0.4571       100
+entrance_hall     0.6036    0.6700    0.6351       100
+      kitchen     0.5042    0.6000    0.5479       100
+  living_room     0.4110    0.3000    0.3468       100
+
+     accuracy                         0.5400       600
+    macro avg     0.5338    0.5400    0.5332       600
+ weighted avg     0.5338    0.5400    0.5332       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,76,6,1,6,9,2
+bedroom,14,43,11,13,6,13
+dining_room,1,7,48,10,18,16
+entrance_hall,1,2,16,67,12,2
+kitchen,7,6,11,6,60,10
+living_room,8,16,23,9,14,30
+
+##############################################################################
+# RUN: 2026-07-12_11-25_vit_s16_3200_center_l001
+# evaluation: eval_2026-07-12_13-21-11
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-12_11-25_vit_s16_3200_center_l001/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5300
+
+Per-class accuracy:
+  bathroom       : 0.7600
+  bedroom        : 0.4100
+  dining_room    : 0.4600
+  entrance_hall  : 0.6000
+  kitchen        : 0.6400
+  living_room    : 0.3100
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.6909    0.7600    0.7238       100
+      bedroom     0.5000    0.4100    0.4505       100
+  dining_room     0.5287    0.4600    0.4920       100
+entrance_hall     0.5825    0.6000    0.5911       100
+      kitchen     0.4384    0.6400    0.5203       100
+  living_room     0.4306    0.3100    0.3605       100
+
+     accuracy                         0.5300       600
+    macro avg     0.5285    0.5300    0.5230       600
+ weighted avg     0.5285    0.5300    0.5230       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,76,9,1,2,11,1
+bedroom,12,41,6,11,13,17
+dining_room,3,12,46,11,16,12
+entrance_hall,4,5,14,60,14,3
+kitchen,8,7,6,7,64,8
+living_room,7,8,14,12,28,31
+
+##############################################################################
+# RUN: 2026-07-14_17-58_vit_s16_3200_selflabel_center
+# evaluation: eval_2026-07-18_08-52-30
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-14_17-58_vit_s16_3200_selflabel_center/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5617
+
+Per-class accuracy:
+  bathroom       : 0.7100
+  bedroom        : 0.5200
+  dining_room    : 0.5700
+  entrance_hall  : 0.6800
+  kitchen        : 0.5400
+  living_room    : 0.3500
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7172    0.7100    0.7136       100
+      bedroom     0.6265    0.5200    0.5683       100
+  dining_room     0.5089    0.5700    0.5377       100
+entrance_hall     0.6415    0.6800    0.6602       100
+      kitchen     0.4737    0.5400    0.5047       100
+  living_room     0.4070    0.3500    0.3763       100
+
+     accuracy                         0.5617       600
+    macro avg     0.5625    0.5617    0.5601       600
+ weighted avg     0.5625    0.5617    0.5601       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,71,10,2,3,11,3
+bedroom,10,52,8,7,10,13
+dining_room,2,6,57,9,14,12
+entrance_hall,2,3,11,68,9,7
+kitchen,7,2,13,8,54,16
+living_room,7,10,21,11,16,35
+
+##############################################################################
+# RUN: 2026-07-20_15-13_vit_s16_exp2_500_semi
+# evaluation: eval_2026-07-20_15-49-41
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-20_15-13_vit_s16_exp2_500_semi/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.3883
+
+Per-class accuracy:
+  bathroom       : 0.6000
+  bedroom        : 0.2100
+  dining_room    : 0.4000
+  entrance_hall  : 0.4200
+  kitchen        : 0.5500
+  living_room    : 0.1500
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.5405    0.6000    0.5687       100
+      bedroom     0.2593    0.2100    0.2320       100
+  dining_room     0.3738    0.4000    0.3865       100
+entrance_hall     0.4242    0.4200    0.4221       100
+      kitchen     0.4074    0.5500    0.4681       100
+  living_room     0.2239    0.1500    0.1796       100
+
+     accuracy                         0.3883       600
+    macro avg     0.3715    0.3883    0.3762       600
+ weighted avg     0.3715    0.3883    0.3762       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,60,21,2,9,7,1
+bedroom,19,21,16,12,19,13
+dining_room,5,10,40,11,17,17
+entrance_hall,9,5,21,42,14,9
+kitchen,10,8,8,7,55,12
+living_room,8,16,20,18,23,15
+
+##############################################################################
+# RUN: 2026-07-20_15-52_vit_s16_exp2_500_supervised
+# evaluation: eval_2026-07-20_17-07-47
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-07-20_15-52_vit_s16_exp2_500_supervised/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.3683
+
+Per-class accuracy:
+  bathroom       : 0.5500
+  bedroom        : 0.1900
+  dining_room    : 0.3700
+  entrance_hall  : 0.4500
+  kitchen        : 0.5000
+  living_room    : 0.1500
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.5851    0.5500    0.5670       100
+      bedroom     0.2923    0.1900    0.2303       100
+  dining_room     0.3083    0.3700    0.3364       100
+entrance_hall     0.4091    0.4500    0.4286       100
+      kitchen     0.3759    0.5000    0.4292       100
+  living_room     0.1923    0.1500    0.1685       100
+
+     accuracy                         0.3683       600
+    macro avg     0.3605    0.3683    0.3600       600
+ weighted avg     0.3605    0.3683    0.3600       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,55,16,5,12,10,2
+bedroom,16,19,19,10,14,22
+dining_room,5,10,37,15,17,16
+entrance_hall,6,4,21,45,16,8
+kitchen,7,4,13,11,50,15
+living_room,5,12,25,17,26,15
+
+##############################################################################
+# RUN: 2026-08-07_21-22_vit_s16_sweep_frombase_tau095
+# evaluation: eval_2026-08-07_22-31-41
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-08-07_21-22_vit_s16_sweep_frombase_tau095/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5733
+
+Per-class accuracy:
+  bathroom       : 0.7600
+  bedroom        : 0.4400
+  dining_room    : 0.5900
+  entrance_hall  : 0.7200
+  kitchen        : 0.6400
+  living_room    : 0.2900
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7600    0.7600    0.7600       100
+      bedroom     0.6377    0.4400    0.5207       100
+  dining_room     0.4876    0.5900    0.5339       100
+entrance_hall     0.6261    0.7200    0.6698       100
+      kitchen     0.5565    0.6400    0.5953       100
+  living_room     0.3625    0.2900    0.3222       100
+
+     accuracy                         0.5733       600
+    macro avg     0.5717    0.5733    0.5670       600
+ weighted avg     0.5717    0.5733    0.5670       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,76,3,2,3,14,2
+bedroom,11,44,8,14,2,21
+dining_room,1,5,59,9,14,12
+entrance_hall,0,1,15,72,6,6
+kitchen,4,3,13,6,64,10
+living_room,8,13,24,11,15,29
+
+##############################################################################
+# RUN: 2026-08-07_22-31_vit_s16_sweep_frombase_cov25
+# evaluation: eval_2026-08-07_23-49-01
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-08-07_22-31_vit_s16_sweep_frombase_cov25/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5750
+
+Per-class accuracy:
+  bathroom       : 0.7700
+  bedroom        : 0.4900
+  dining_room    : 0.4800
+  entrance_hall  : 0.7000
+  kitchen        : 0.6700
+  living_room    : 0.3400
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7700    0.7700    0.7700       100
+      bedroom     0.5632    0.4900    0.5241       100
+  dining_room     0.5581    0.4800    0.5161       100
+entrance_hall     0.6604    0.7000    0.6796       100
+      kitchen     0.5000    0.6700    0.5726       100
+  living_room     0.3908    0.3400    0.3636       100
+
+     accuracy                         0.5750       600
+    macro avg     0.5738    0.5750    0.5710       600
+ weighted avg     0.5738    0.5750    0.5710       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,77,4,1,4,13,1
+bedroom,12,49,4,7,6,22
+dining_room,1,8,48,9,20,14
+entrance_hall,0,3,13,70,9,5
+kitchen,5,6,6,5,67,11
+living_room,5,17,14,11,19,34
+
+##############################################################################
+# RUN: 2026-08-07_23-49_vit_s16_sweep_frombase_cov50
+# evaluation: eval_2026-08-08_01-13-34
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-08-07_23-49_vit_s16_sweep_frombase_cov50/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5717
+
+Per-class accuracy:
+  bathroom       : 0.7200
+  bedroom        : 0.4700
+  dining_room    : 0.5000
+  entrance_hall  : 0.7000
+  kitchen        : 0.7300
+  living_room    : 0.3100
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7500    0.7200    0.7347       100
+      bedroom     0.6104    0.4700    0.5311       100
+  dining_room     0.5319    0.5000    0.5155       100
+entrance_hall     0.6796    0.7000    0.6897       100
+      kitchen     0.4867    0.7300    0.5840       100
+  living_room     0.3875    0.3100    0.3444       100
+
+     accuracy                         0.5717       600
+    macro avg     0.5743    0.5717    0.5666       600
+ weighted avg     0.5743    0.5717    0.5666       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,72,4,1,3,18,2
+bedroom,11,47,6,7,9,20
+dining_room,2,6,50,8,21,13
+entrance_hall,0,3,12,70,10,5
+kitchen,3,4,5,6,73,9
+living_room,8,13,20,9,19,31
+
+##############################################################################
+# RUN: 2026-08-08_01-13_vit_s16_sweep_fromcenter_cov25
+# evaluation: eval_2026-08-08_02-31-39
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-08-08_01-13_vit_s16_sweep_fromcenter_cov25/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5533
+
+Per-class accuracy:
+  bathroom       : 0.7300
+  bedroom        : 0.5000
+  dining_room    : 0.5000
+  entrance_hall  : 0.7000
+  kitchen        : 0.5900
+  living_room    : 0.3000
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7526    0.7300    0.7411       100
+      bedroom     0.6667    0.5000    0.5714       100
+  dining_room     0.5051    0.5000    0.5025       100
+entrance_hall     0.5785    0.7000    0.6335       100
+      kitchen     0.4538    0.5900    0.5130       100
+  living_room     0.3846    0.3000    0.3371       100
+
+     accuracy                         0.5533       600
+    macro avg     0.5569    0.5533    0.5498       600
+ weighted avg     0.5569    0.5533    0.5498       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,73,6,1,5,13,2
+bedroom,9,50,6,9,11,15
+dining_room,2,5,50,12,19,12
+entrance_hall,0,0,14,70,11,5
+kitchen,6,2,9,10,59,14
+living_room,7,12,19,15,17,30
+
+##############################################################################
+# RUN: 2026-08-08_02-31_vit_s16_sweep_fromcenter_cov50
+# evaluation: eval_2026-08-08_03-56-05
+##############################################################################
+
+--- OVERALL AND PER-CLASS ACCURACY [metrics.txt] ---
+Checkpoint: /content/drive/MyDrive/Dissertation_Thesis/dissertation_runs/2026-08-08_02-31_vit_s16_sweep_fromcenter_cov50/checkpoints/best_model.pt
+Eval dir:   /content/dataset_split/eval
+Images:     600
+
+Overall accuracy: 0.5500
+
+Per-class accuracy:
+  bathroom       : 0.7200
+  bedroom        : 0.4700
+  dining_room    : 0.5800
+  entrance_hall  : 0.6700
+  kitchen        : 0.5500
+  living_room    : 0.3100
+
+--- CLASSIFICATION REPORT (precision / recall / F1) [classification_report.txt] ---
+precision    recall  f1-score   support
+
+     bathroom     0.7059    0.7200    0.7129       100
+      bedroom     0.6528    0.4700    0.5465       100
+  dining_room     0.5133    0.5800    0.5446       100
+entrance_hall     0.5776    0.6700    0.6204       100
+      kitchen     0.4545    0.5500    0.4977       100
+  living_room     0.4079    0.3100    0.3523       100
+
+     accuracy                         0.5500       600
+    macro avg     0.5520    0.5500    0.5457       600
+ weighted avg     0.5520    0.5500    0.5457       600
+
+--- CONFUSION MATRIX (rows = true, columns = predicted) [confusion_matrix.csv] ---
+true\pred,bathroom,bedroom,dining_room,entrance_hall,kitchen,living_room
+bathroom,72,5,1,6,14,2
+bedroom,12,47,7,10,11,13
+dining_room,2,7,58,7,15,11
+entrance_hall,2,1,15,67,10,5
+kitchen,7,1,12,11,55,14
+living_room,7,11,20,15,16,31
+
+##############################################################################
+# SUMMARY FILE: sweep_results.csv
+##############################################################################
+tag,warmup,coverage,tau,run_name,best_val_acc,test_acc,delta_vs_baseline,minutes
+frombase_tau095,baseline,,0.95,vit_s16_sweep_frombase_tau095,0.579444,0.5733,0.01,69.7
+frombase_cov25,baseline,0.25,,vit_s16_sweep_frombase_cov25,0.581667,0.575,0.0117,77.3
+frombase_cov50,baseline,0.5,,vit_s16_sweep_frombase_cov50,0.581111,0.5717,0.0084,84.6
+fromcenter_cov25,center,0.25,,vit_s16_sweep_fromcenter_cov25,0.571667,0.5533,-0.01,78.0
+fromcenter_cov50,center,0.5,,vit_s16_sweep_fromcenter_cov50,0.561111,0.55,-0.0133,84.5
+
+##############################################################################
+# RUNS WITHOUT A COMPLETED EVALUATION (nothing to verify)
+##############################################################################
+  2026-08-07_21-11_vit_s16_exp2_500_semi_cov50 (no evaluation)
+  2026-08-07_21-15_vit_s16_sweep_frombase_tau095 (no evaluation)
+  2026-08-07_21-21_vit_s16_sweep_frombase_tau095 (no evaluation)
