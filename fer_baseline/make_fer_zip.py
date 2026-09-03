@@ -38,14 +38,20 @@ def main() -> None:
         raise SystemExit(f"Source not found: {src}")
 
     files = sorted(p for p in src.rglob("*") if p.is_file())
+    # The archive root takes the name of the source directory rather than a
+    # fixed string. Two archives of different datasets would otherwise extract
+    # over one another, and a notebook that skips extraction when the target
+    # exists would then silently train on whichever arrived first.
+    root = src.name
     print(f"source : {src}")
+    print(f"root   : {root}/")
     print(f"files  : {len(files):,}")
 
     t0 = time.time()
     # PNGs are already compressed; storing them avoids a slow, pointless pass.
     with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as z:
         for i, f in enumerate(files, 1):
-            z.write(f, arcname=f"fer2013/{f.relative_to(src).as_posix()}")
+            z.write(f, arcname=f"{root}/{f.relative_to(src).as_posix()}")
             if i % 10000 == 0:
                 print(f"   {i:,}/{len(files):,}")
 

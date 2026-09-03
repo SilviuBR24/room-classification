@@ -25,7 +25,7 @@
 # variant; everything else is taken from this file unchanged.
 # ============================================================
 
-run_name: "fer_crossentropy"        # overridden per variant by the runner
+run_name: "fer_clean_crossentropy"        # overridden per variant by the runner
 
 model:
   # Guard value: the builder refuses any config that does not declare this,
@@ -43,9 +43,9 @@ data:
   # Written by download_fer2013.py. The three roles match the room experiments:
   # train fits the weights, val selects the best epoch, eval is held out and
   # read only for final reporting.
-  train_dir: "/content/fer2013/train"
-  val_dir:   "/content/fer2013/val"
-  eval_dir:  "/content/fer2013/eval"
+  train_dir: "/content/fer2013_clean/train"
+  val_dir:   "/content/fer2013_clean/val"
+  eval_dir:  "/content/fer2013_clean/eval"
   # Fixed, explicit class order. Index = position in this list.
   #
   # NOTE: unlike the room dataset, these classes are heavily imbalanced --

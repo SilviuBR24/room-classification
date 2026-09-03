@@ -29,7 +29,7 @@
 # variant; everything else is taken from this file unchanged.
 # ============================================================
 
-run_name: "fer_wen_gradient"        # overridden per variant by the runner
+run_name: "fer_wen_clean_gradient"        # overridden per variant by the runner
 
 model:
   # Guard value: the builder refuses any config not declaring this.
@@ -39,9 +39,9 @@ model:
   num_classes: 7
 
 data:
-  train_dir: "/content/fer2013/train"
-  val_dir:   "/content/fer2013/val"
-  eval_dir:  "/content/fer2013/eval"
+  train_dir: "/content/fer2013_clean/train"
+  val_dir:   "/content/fer2013_clean/val"
+  eval_dir:  "/content/fer2013_clean/eval"
   # Fixed, explicit class order. Index = position in this list.
   #
   # Heavily imbalanced: 7,215 training images for happy against 436 for

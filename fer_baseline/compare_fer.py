@@ -36,15 +36,15 @@ import yaml
 HERE = Path(__file__).resolve().parent
 
 VARIANTS: List[Dict[str, Any]] = [
-    {"run_name": "fer_crossentropy",
+    {"run_name": "fer_clean_crossentropy",
      "description": "ResNet-18 on FER2013, cross-entropy only",
      "use_center_loss": False},
-    {"run_name": "fer_crossentropy_centerloss",
+    {"run_name": "fer_clean_crossentropy_centerloss",
      "description": "ResNet-18 on FER2013, cross-entropy + Center Loss",
      "use_center_loss": True},
 ]
 
-SUMMARY_FILENAME = "fer_comparison_results.csv"
+SUMMARY_FILENAME = "fer_clean_comparison_results.csv"
 SUMMARY_FIELDS = ["run_name", "description", "use_center_loss", "center_loss_weight",
                   "image_size", "best_val_accuracy", "test_accuracy", "macro_f1",
                   "minutes", "run_dir"]

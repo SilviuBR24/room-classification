@@ -36,15 +36,21 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 
-# The result produced by the shared training loop in fer_baseline/, which the
-# control variant is expected to reproduce.
-REFERENCE = {"run": "fer_crossentropy_centerloss", "test_accuracy": 0.6807,
-             "source": "fer_baseline/, shared training loop"}
+# The control variant must reproduce the result the shared training loop
+# produced under the same settings. That number is not hard-coded: it is read
+# from the summary the other experiment wrote, so it can never go stale.
+#
+# It was hard-coded once, as 0.6807, and that value came from a run on the
+# original FER2013 partitioning -- which is now known to share 8.75% of its test
+# images with training. Comparing against it after moving to the deduplicated
+# split would have silently compared two different datasets.
+REFERENCE_SUMMARY = "fer_clean_comparison_results.csv"
+REFERENCE_RUN = "fer_clean_crossentropy_centerloss"
 
 VARIANTS: List[Dict[str, Any]] = [
-    {"run_name": "fer_wen_gradient", "center_mode": "gradient",
+    {"run_name": "fer_wen_clean_gradient", "center_mode": "gradient",
      "description": "CONTROL: centres as parameters, SGD on the combined objective"},
-    {"run_name": "fer_wen_algorithm1", "center_mode": "wen",
+    {"run_name": "fer_wen_clean_algorithm1", "center_mode": "wen",
      "description": "Algorithm 1 of Wen et al., per-class normalisation by (1 + n_j)"},
 ]
 
@@ -111,6 +117,48 @@ def read_best_val(run_dir: str) -> Optional[float]:
     return max(float(h) for h in hits) if hits else None
 
 
+def run_matches(run_dir: str, base: Dict[str, Any],
+                variant: Dict[str, Any]) -> tuple[bool, str]:
+    """Is an existing run directory safe to reuse for this variant?
+
+    Checks the settings that would change the numbers, plus the presence of the
+    artefacts a completed evaluation must have written. Anything else -- paths,
+    worker counts -- does not affect the result and is ignored.
+    """
+    cfg_path = os.path.join(run_dir, "logs", "config_used.yaml")
+    if not os.path.isfile(cfg_path):
+        return False, "it has no logs/config_used.yaml, so its settings are unknown"
+    with open(cfg_path, encoding="utf-8") as fh:
+        old = yaml.safe_load(fh)
+
+    checks = [
+        ("training.center_mode", old["training"].get("center_mode"), variant["center_mode"]),
+        ("training.center_loss_weight", old["training"].get("center_loss_weight"),
+         base["training"]["center_loss_weight"]),
+        ("training.center_loss_lr", old["training"].get("center_loss_lr"),
+         base["training"]["center_loss_lr"]),
+        ("training.epochs", old["training"].get("epochs"), base["training"]["epochs"]),
+        ("training.batch_size", old["training"].get("batch_size"), base["training"]["batch_size"]),
+        ("training.learning_rate", old["training"].get("learning_rate"),
+         base["training"]["learning_rate"]),
+        ("training.seed", old["training"].get("seed"), base["training"]["seed"]),
+        ("model.image_size", old["model"].get("image_size"), base["model"]["image_size"]),
+        ("model.num_classes", old["model"].get("num_classes"), base["model"]["num_classes"]),
+    ]
+    for key, was, now in checks:
+        if was != now:
+            return False, f"{key} was {was!r} in that run but is {now!r} now"
+
+    ev = newest_eval(run_dir)
+    required = ["metrics.txt", "classification_report.txt", "confusion_matrix.csv"]
+    missing = [f for f in required if not os.path.isfile(os.path.join(ev, f))]
+    if missing:
+        return False, f"its evaluation is incomplete, missing {missing}"
+    if read_test_accuracy(run_dir) is None:
+        return False, "no overall accuracy could be read from its metrics.txt"
+    return True, ""
+
+
 def build_variant_config(base: Dict[str, Any], variant: Dict[str, Any]) -> Path:
     cfg = copy.deepcopy(base)
     cfg["run_name"] = variant["run_name"]
@@ -130,7 +178,25 @@ def append_summary(path: Path, record: Dict[str, Any]) -> None:
         w.writerow({k: record.get(k, "") for k in SUMMARY_FIELDS})
 
 
-def print_summary(records: List[Dict[str, Any]]) -> None:
+def read_reference(runs_dir: str) -> Optional[Dict[str, Any]]:
+    """The result the shared training loop produced under the same settings.
+
+    Read from the other experiment's summary rather than hard-coded, so it
+    cannot drift out of date when the dataset or the settings change.
+    """
+    path = os.path.join(runs_dir, REFERENCE_SUMMARY)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            if row.get("run_name") == REFERENCE_RUN and row.get("test_accuracy"):
+                return {"test_accuracy": float(row["test_accuracy"]),
+                        "n_test": None, "source": f"{REFERENCE_SUMMARY} / {REFERENCE_RUN}"}
+    return None
+
+
+def print_summary(records: List[Dict[str, Any]], reference: Optional[Dict[str, Any]],
+                  n_test: Optional[int]) -> None:
     def num(r, key, nd=4):
         v = r.get(key)
         return f"{float(v):.{nd}f}" if v not in (None, "") else "-"
@@ -149,21 +215,41 @@ def print_summary(records: List[Dict[str, Any]]) -> None:
     by_mode = {r["center_mode"]: r for r in records}
 
     control = by_mode.get("gradient")
-    if control and control.get("test_accuracy") not in (None, ""):
+    if control and control.get("test_accuracy") not in (None, "") and reference is None:
+        print("\nCONTROL CHECK")
+        print(f"  Cannot be performed: {REFERENCE_SUMMARY} does not yet contain a")
+        print(f"  row for {REFERENCE_RUN}. Run the fer_baseline comparison on the")
+        print("  same dataset first, then re-run this script to see the check.")
+    elif control and control.get("test_accuracy") not in (None, "") and reference:
         got = float(control["test_accuracy"])
-        ref = REFERENCE["test_accuracy"]
+        ref = reference["test_accuracy"]
         delta = got - ref
         print(f"\nCONTROL CHECK")
         print(f"  This loop, gradient mode : {got:.4f}")
-        print(f"  Shared loop, same setting: {ref:.4f}   ({REFERENCE['source']})")
+        print(f"  Shared loop, same setting: {ref:.4f}   ({reference['source']})")
         print(f"  Difference               : {delta:+.4f}")
-        if abs(delta) <= 0.01:
-            print("  Within one percentage point: the two loops agree, so a difference")
-            print("  in the other variant can be attributed to the update rule.")
+        # Standard error of a difference of two proportions on n = 3,589.
+        # Both runs are evaluated on the same images, so a paired test
+        # (McNemar on the disagreements, or a bootstrap over the per-image
+        # predictions) would be sharper. This unpaired figure is the
+        # conservative version, and it is the one to quote here.
+        n = n_test or 3589
+        se_one = (ref * (1 - ref) / n) ** 0.5
+        se_diff = se_one * (2 ** 0.5)
+        print(f"  Standard error, one run  : {se_one:.4f}")
+        print(f"  Standard error, difference: {se_diff:.4f}  "
+              f"(unpaired; a paired test would be tighter)")
+        if abs(delta) <= 2 * se_diff:
+            print(f"  |difference| is within two standard errors ({2 * se_diff:.4f}).")
+            print("  The two loops are consistent, so a difference in the other")
+            print("  variant may reasonably be attributed to the update rule.")
         else:
-            print("  MORE THAN ONE POINT APART. This loop differs from the shared one in")
-            print("  some way beyond the update rule. Do not attribute the other")
-            print("  variant's result to Algorithm 1 until this is explained.")
+            print(f"  |difference| EXCEEDS two standard errors ({2 * se_diff:.4f}).")
+            print("  This loop differs from the shared one in some way beyond the")
+            print("  update rule. Do not attribute the other variant's result to")
+            print("  Algorithm 1 until that is explained.")
+        print("\n  Note: this check is reported after both runs finish; it does not")
+        print("  gate the second one. Read it before drawing any conclusion.")
 
     if "gradient" in by_mode and "wen" in by_mode:
         g, w = by_mode["gradient"], by_mode["wen"]
@@ -213,6 +299,17 @@ def main() -> None:
         name = v["run_name"]
         existing = find_run_dir(runs_dir, name)
         if existing and newest_eval(existing) and not args.force:
+            # A finished-looking run directory is not enough. It may have been
+            # produced by an earlier, different configuration, and reusing it
+            # would file old numbers under the current settings without any
+            # error. Check that the run's own saved config matches, and that
+            # its evaluation actually completed.
+            reusable, why = run_matches(existing, base, v)
+            if not reusable:
+                print(f"\n[stop] {name}: an existing run was found at {existing},")
+                print(f"       but it cannot be reused: {why}")
+                print("       Re-run with --force to overwrite it, or move it aside.")
+                return
             print(f"\n[skip] {name}: already evaluated at {existing}")
             records.append({
                 "run_name": name, "center_mode": v["center_mode"],
@@ -260,7 +357,16 @@ def main() -> None:
         append_summary(summary_path, record)
         records.append(record)
 
-    print_summary(records)
+    reference = read_reference(runs_dir)
+    n_test = None
+    for r in records:
+        ev = newest_eval(r["run_dir"]) if r.get("run_dir") else None
+        if ev:
+            m = re.search(r"Images:\s*(\d+)", read_text(os.path.join(ev, "metrics.txt")))
+            if m:
+                n_test = int(m.group(1))
+                break
+    print_summary(records, reference, n_test)
     print(f"\nSummary appended to {summary_path}")
 
 

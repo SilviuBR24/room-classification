@@ -54,11 +54,22 @@ HERE = Path(__file__).resolve().parent
 # small utilities, kept local so this folder depends on nothing
 # ----------------------------------------------------------------------
 def set_seed(seed: int) -> None:
+    """Seed everything the shared training loop seeds, in the same way.
+
+    The cuDNN settings matter as much as the generators here. Left at their
+    defaults, cuDNN benchmarks the available convolution algorithms and picks
+    whichever is fastest on the machine, which can differ between runs. The
+    control run in this folder has to reproduce a result produced by the shared
+    loop, so it must make the same choices: any divergence would otherwise be
+    read as an effect of the centre-update rule.
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+    torch.cuda.manual_seed_all(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def rng_state() -> Dict[str, Any]:
@@ -232,6 +243,20 @@ def main() -> None:
                 # Algorithm 1, applied after the model step, in float32 and
                 # outside the graph. Uses the embeddings of this batch, which
                 # is what the paper specifies.
+                #
+                # The guard is not decorative. Under mixed precision the scaler
+                # silently skips an optimiser step whose gradients are not
+                # finite, so the gradient mode recovers on its own. This manual
+                # update has no such protection: a single non-finite embedding
+                # would write NaN into a centre, and because the centres are a
+                # running quantity that NaN would never wash out -- it would
+                # poison the rest of the run and every metric derived from it.
+                # Failing loudly is far better than reporting a corrupted run.
+                if not torch.isfinite(feats).all():
+                    raise FloatingPointError(
+                        "Non-finite embeddings in the forward pass; the manual "
+                        "centre update was aborted rather than writing NaN into "
+                        "the centres. Re-run with training.use_amp: false.")
                 center_loss.update_centers(feats, targets, alpha=rate)
 
             bs = images.size(0)
