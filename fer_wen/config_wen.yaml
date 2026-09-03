@@ -1,0 +1,86 @@
+# ============================================================
+# CENTER LOSS UPDATE RULE -- COMPARISON ON FER2013
+# ------------------------------------------------------------
+# One question: does the way the class centres are updated
+# change the outcome?
+#
+#   "gradient"  centres are learnable parameters stepped by an
+#               SGD optimiser on the combined objective. This is
+#               what most public implementations do, and what the
+#               rest of this project does. lambda enters the
+#               centre gradient and the displacement is
+#               normalised by the mini-batch size.
+#
+#   "wen"       Algorithm 1 of Wen et al.: a dedicated update
+#               normalised per class by (1 + n_j), applied with
+#               its own rate alpha, independent of lambda.
+#
+# Everything else is held fixed: the same scalar loss, the same
+# lambda, alpha = eta_c = 0.5, the same data, schedule, seed and
+# architecture. The update rule is the only difference.
+#
+# The "gradient" run is a CONTROL. This folder has its own
+# training loop, so that run must reproduce the result already
+# obtained by the shared loop in fer_baseline/ (test 0.6807).
+# If it does not, the loop differs in some other way and the
+# comparison is not yet trustworthy.
+#
+# `compare_wen.py` overrides `run_name` and `center_mode` per
+# variant; everything else is taken from this file unchanged.
+# ============================================================
+
+run_name: "fer_wen_gradient"        # overridden per variant by the runner
+
+model:
+  # Guard value: the builder refuses any config not declaring this.
+  arch: resnet18_fer_wen
+  image_size: 96                    # chosen by measurement, see fer_baseline/
+  embed_dim: 512                    # ResNet-18 feature width
+  num_classes: 7
+
+data:
+  train_dir: "/content/fer2013/train"
+  val_dir:   "/content/fer2013/val"
+  eval_dir:  "/content/fer2013/eval"
+  # Fixed, explicit class order. Index = position in this list.
+  #
+  # Heavily imbalanced: 7,215 training images for happy against 436 for
+  # disgust, about 16 to 1. This is exactly why the update rule might matter.
+  # Under "gradient" the displacement is divided by the batch size, so the
+  # disgust centre advances roughly sixteen times less often than the happy
+  # centre. Under "wen" each class is divided by its own count, so both
+  # advance at a comparable rate. The imbalance is what makes the difference
+  # observable; on the balanced room dataset it could not show itself.
+  class_names:
+    - angry
+    - disgust
+    - fear
+    - happy
+    - sad
+    - surprise
+    - neutral
+  norm_mean: [0.485, 0.456, 0.406]
+  norm_std:  [0.229, 0.224, 0.225]
+
+training:
+  # Identical to the fer_baseline runs, so the control can reproduce them.
+  epochs: 50
+  batch_size: 64
+  learning_rate: 0.0003
+  weight_decay: 0.05
+  seed: 42
+  num_workers: 2                    # the runner raises this on Colab
+  use_amp: true
+  scheduler: "cosine"
+  warmup_epochs: 5
+  label_smoothing: 0.1
+  grad_clip: 1.0
+
+  # --- Center Loss ----------------------------------------------------
+  # center_mode is overridden per variant by the runner.
+  center_mode: "gradient"           # "gradient" or "wen"
+  center_loss_weight: 0.0005        # lambda, in both modes
+  center_loss_lr: 0.5               # eta_c in "gradient" mode, alpha in "wen"
+
+paths:
+  output_root: "/content/drive/MyDrive/Dissertation_Thesis/dissertation_runs"
