@@ -3,7 +3,7 @@ Unde ceva e corect, spune scurt "confirmat". Petrece efortul pe ce e greșit,
 nedovedit sau formulat mai tare decât permit datele.
 
 REPOZITORIU: https://github.com/SilviuBR24/room-classification
-COMMIT: c7167424 (ramura main)
+COMMIT: (vezi ultimul commit de pe main)
 
 CONTEXT
 Disertație UPB/ETTI: "Room Type Recognition Using Clustering Cost Functions for
@@ -127,6 +127,38 @@ Aici vreau răspunsuri argumentate, nu confirmări.
     prezintă într-o disertație fără să pară eșec. Dă-mi structura concretă a
     subcapitolului: ce se afirmă, ce nu se afirmă, cum se leagă de rezultatul
     pozitiv de pe camere unde raportul de bază depășește 1.
+
+Î7. EXPERIMENTUL PRINCIPAL, TESTAT ABIA ACUM. Toată rigoarea de mai sus s-a
+    aplicat pe FER. Aplicând-o și pe camere (600 imagini de evaluare, seed 42,
+    o singură rulare per configurație), McNemar pereche dă:
+      setarea 3500: baseline 57.50%
+        lambda=0.0005 -> 61.17%  (+3.67pp)  p = 0.0298
+        lambda=0.001  -> 60.67%  (+3.17pp)  p = 0.1127
+        lambda=0.01   -> 53.33%  (-4.17pp)  p = 0.0314
+      setarea 3200: baseline 56.33%
+        lambda=0.0005 -> 55.00%  (-1.33pp)  p = 0.5085
+        lambda=0.001  -> 54.00%  (-2.33pp)  p = 0.2352
+        lambda=0.01   -> 53.00%  (-3.33pp)  p = 0.0978
+    Deci: la 3500 Center Loss ajută la lambda mic, la 3200 strică la TOATE
+    valorile, inclusiv la același lambda mic. Sunt șase comparații, alese după
+    ce am văzut rezultatele. Cu Holm-Bonferroni pe cele șase, cel mai mic p
+    (0.0298) se compară cu 0.05/6 = 0.0083 și nu trece; nimic nu supraviețuiește.
+    Întrebările mele:
+    (a) Este corect să aplic corecție pentru comparații multiple aici, dat fiind
+        că sweep-ul de lambda a fost o căutare, nu șase ipoteze independente?
+        Dacă da, care corecție?
+    (b) Ce am voie să afirm? Singurul tipar consistent între cele două setări
+        este că lambda mare (0.01) strică. Pot afirma asta, și pot afirma că
+        lambda mic NU s-a dovedit că ajută pe acuratețe?
+    (c) Contradicția 3200 vs 3500 la același lambda: e dovadă împotriva unui
+        efect real, sau se poate explica prin cantitatea diferită de date?
+    (d) Dacă rezultatul de acuratețe nu se susține, iar contribuția reală e
+        geometria spațiului de embedding (ceea ce spune și titlul lucrării),
+        cum rescriu Capitolul 4 astfel încât să fie onest fără să pară că
+        lucrarea nu a demonstrat nimic? Ce trebuie măsurat în plus ca teza să
+        stea în picioare pe geometrie?
+    (e) 600 de imagini de evaluare, 100 pe clasă. Este suficient pentru orice
+        afirmație de acuratețe? Ce putere statistică am pentru a detecta 3pp?
 
 Î6. CE LIPSEȘTE DIN PAZNIC. Scripturile de comparație refolosesc un director de
     rulare existent doar dacă config_used.yaml se potrivește pe: modul/comutatorul
