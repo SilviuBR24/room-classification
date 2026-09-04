@@ -484,6 +484,102 @@ def print_paired_tests(recs: List[Dict]) -> None:
     print("     predictions are not paired and no McNemar test applies.")
 
 
+def paired_bootstrap(recs: List[Dict], ka: str, kb: str, metric: str = "ratio",
+                     n_boot: int = 5000, seed: int = 0) -> Dict[str, float]:
+    """Bootstrap the DIFFERENCE in a geometry metric between two runs.
+
+    Three things matter here, and an earlier version of this analysis got the
+    first one wrong:
+
+    * Paired. Both runs are evaluated on the same images, so each resample must
+      draw one set of indices and apply it to both. Drawing separately and
+      subtracting the two distributions describes a comparison nobody made, and
+      inflates the interval.
+    * Stratified. Resampling within each class keeps the class proportions of
+      the evaluation set fixed, so the interval reflects uncertainty about the
+      geometry rather than about how many faces of each expression were drawn.
+    * Enough resamples. A 95% percentile interval from 400 draws is pinned by
+      roughly its tenth order statistic at each end, which is far too few to
+      place an endpoint; 5000 is cheap here.
+    """
+    by = {r["run"].key: r for r in recs}
+    ra, rb = by[ka], by[kb]
+    lab = ra["lab"]
+    if not np.array_equal(lab, rb["lab"]):
+        raise SystemExit(f"{ka} and {kb} are not scored on the same images")
+
+    per_class = [np.flatnonzero(lab == c) for c in np.unique(lab)]
+    rng = np.random.default_rng(seed)
+    obs = rb[metric] - ra[metric]
+    diffs = np.empty(n_boot)
+    for t in range(n_boot):
+        idx = np.concatenate([rng.choice(g, size=len(g), replace=True)
+                              for g in per_class])
+        ga = geometry(ra["emb"][idx], lab[idx])
+        gb = geometry(rb["emb"][idx], lab[idx])
+        diffs[t] = gb[metric] - ga[metric]
+    lo, hi = np.percentile(diffs, [2.5, 97.5])
+    return {"observed": obs, "lo": float(lo), "hi": float(hi),
+            "excludes_zero": bool(lo * hi > 0), "n_boot": n_boot}
+
+
+def paired_bootstrap(recs: List[Dict], ka: str, kb: str, metric: str = "ratio",
+                     n_boot: int = 5000, seed: int = 0) -> Dict[str, float]:
+    """Bootstrap the DIFFERENCE in a geometry metric between two runs.
+
+    Three things matter here, and an earlier version of this analysis got the
+    first one wrong:
+
+    * Paired. Both runs are scored on the same images, so each resample draws
+      one set of indices and applies it to both. Drawing separately and
+      subtracting the two distributions describes a comparison nobody made,
+      and inflates the interval.
+    * Stratified by class. Resampling within each class holds the class
+      proportions of the evaluation set fixed, so the interval reflects
+      uncertainty about the geometry rather than about how many faces of each
+      expression happened to be drawn.
+    * Enough resamples. A 95% percentile interval from 400 draws is pinned by
+      roughly its tenth order statistic at each end, far too few to place an
+      endpoint; 5000 costs seconds here.
+
+    This describes sampling of the evaluation images only. It says nothing
+    about how much the difference would move under a different training seed.
+    """
+    by = {r["run"].key: r for r in recs}
+    ra, rb = by[ka], by[kb]
+    lab = ra["lab"]
+    if not np.array_equal(lab, rb["lab"]):
+        raise SystemExit(f"{ka} and {kb} are not scored on the same images")
+
+    # geometry() also computes silhouette and Davies-Bouldin, both O(n^2) in
+    # the number of points; at thousands of resamples that dominates everything.
+    # inter/intra needs only centroids and norms, so it gets a direct path.
+    def ratio_only(emb: np.ndarray, y: np.ndarray) -> float:
+        cs = np.unique(y)
+        cen = np.stack([emb[y == c].mean(axis=0) for c in cs])
+        intra = np.mean([np.linalg.norm(emb[y == c] - cen[i], axis=1).mean()
+                         for i, c in enumerate(cs)])
+        d = np.linalg.norm(cen[:, None, :] - cen[None, :, :], axis=-1)
+        inter = d[np.triu_indices(len(cs), k=1)].mean()
+        return float(inter / intra)
+
+    measure = ratio_only if metric == "ratio" else \
+        (lambda e, y: geometry(e, y)[metric])
+
+    per_class = [np.flatnonzero(lab == c) for c in np.unique(lab)]
+    rng = np.random.default_rng(seed)
+    diffs = np.empty(n_boot)
+    for t in range(n_boot):
+        idx = np.concatenate([rng.choice(g, size=len(g), replace=True)
+                              for g in per_class])
+        la = lab[idx]
+        diffs[t] = measure(rb["emb"][idx], la) - measure(ra["emb"][idx], la)
+    lo, hi = np.percentile(diffs, [2.5, 97.5])
+    return {"observed": rb[metric] - ra[metric], "lo": float(lo),
+            "hi": float(hi), "excludes_zero": bool(lo * hi > 0),
+            "n_boot": n_boot}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true",

@@ -1,0 +1,115 @@
+# ==================================================================
+# CENTRE UPDATE RULE -- COMPARISON ON THE ROOM DATASET
+# ------------------------------------------------------------------
+# The question this folder answers is the one left open by the FER
+# experiment: on the dataset the thesis is actually about, is the
+# variant used throughout this project better or worse than the rule
+# as published by Wen et al.?
+#
+# Each rule is run exactly as defined. Neither is adjusted to make
+# the comparison neater:
+#
+#   "none"      cross-entropy only. The control. With seed 42 it must
+#               reproduce 2026-07-11_17-49_vit_s16_3200_baseline
+#               (validation 0.5683, test 0.5633). This folder has its
+#               own training loop, so if the control does not
+#               reproduce, the loop differs somewhere and nothing
+#               else here can be trusted yet.
+#
+#   "gradient"  the variant used in this thesis. Centres are ordinary
+#               parameters stepped by SGD on the combined objective,
+#               so lambda multiplies the centre gradient and the sum
+#               over the batch is divided by the batch size B.
+#               Displacement per step is proportional to
+#               eta_c * lambda / B.
+#
+#   "wen"       Algorithm 1 of Wen et al.: a dedicated update with its
+#               own rate alpha, independent of lambda, normalised per
+#               class by (1 + n_j). Displacement per step is
+#               proportional to alpha / (1 + n_j).
+#
+# WHAT THE COMPARISON MEASURES HERE, AND WHAT IT DOES NOT
+# ------------------------------------------------------------------
+# The ratio of the two displacements is  alpha * B / (eta_c * lambda
+# * (1 + n_j)).  On FER2013 that ratio varied nine-fold across
+# classes, from about 63,000 for the rare "disgust" class to about
+# 7,100 for the common "happy" class, because n_j varied. That
+# variation is the rule difference proper, and it is what produced
+# the observed effect there.
+#
+# The room dataset is balanced: 3,200 images in every class, so with
+# B = 64 the expected n_j is 10.67 for all six classes and the ratio
+# is the same number, about 10,970, everywhere. On this dataset the
+# two rules therefore differ by a uniform factor on the centre
+# displacement, not by the per-class behaviour that distinguishes
+# them. Any difference found here must be reported as the effect of
+# the rules as specified -- which is the question being asked -- and
+# not as evidence about per-class normalisation, which balanced data
+# cannot show.
+#
+# `compare_rooms_wen.py` overrides `run_name`, `center_mode` and
+# `seed`; everything else is taken from this file unchanged.
+# ==================================================================
+
+run_name: "rooms_wen_baseline_s42"     # overridden per variant by the runner
+
+model:
+  # Guard value: rooms_wen_model.py refuses any config not declaring this.
+  arch: vit_s16_rooms_wen
+  # Every structural value below is copied from the config of the run being
+  # reproduced, 2026-07-11_17-49_vit_s16_3200_baseline.
+  image_size: 256
+  patch_size: 16
+  in_channels: 3
+  embed_dim: 384                  # the CLS width Center Loss operates on
+  depth: 12
+  num_heads: 6
+  mlp_ratio: 4.0
+  dropout: 0.1
+  attn_dropout: 0.0
+  qkv_bias: true
+  num_classes: 6
+
+data:
+  train_dir: "/content/dataset_split/train"
+  val_dir:   "/content/dataset_split/val"
+  eval_dir:  "/content/dataset_split/eval"
+  # Fixed, explicit class order. Index = position in this list.
+  # Balanced by construction: 3,200 training images per class, which is
+  # exactly why the per-class part of the rule difference cannot appear here.
+  class_names:
+    - bathroom
+    - bedroom
+    - dining_room
+    - entrance_hall
+    - kitchen
+    - living_room
+  norm_mean: [0.485, 0.456, 0.406]
+  norm_std:  [0.229, 0.224, 0.225]
+
+training:
+  # Identical to the 3200 runs, so the control can reproduce them.
+  epochs: 50
+  batch_size: 64
+  learning_rate: 0.0003
+  weight_decay: 0.05
+  seed: 42                        # overridden per variant by the runner
+  num_workers: 2                  # the runner raises this on Colab
+  use_amp: true
+  scheduler: "cosine"
+  warmup_epochs: 5
+  label_smoothing: 0.1
+  grad_clip: 1.0
+
+  # --- centre update ---------------------------------------------------
+  # center_mode is overridden per variant: "none", "gradient" or "wen".
+  center_mode: "none"
+  # lambda. 0.0005 is the value from the sweep that came closest to the
+  # baseline; the other two coefficients tested were further below it.
+  center_loss_weight: 0.0005
+  # eta_c in "gradient" mode, alpha in "wen" mode. Both rules are run at the
+  # value each was used with: 0.5 here and 0.5 in the paper.
+  center_loss_lr: 0.5
+
+paths:
+  output_root: "/content/drive/MyDrive/Dissertation_Thesis/dissertation_runs"
