@@ -57,6 +57,15 @@ sau greșit concepută, spune de ce și ce ar fi verificarea corectă.
    a fost testată empiric înmulțind embeddingurile cu 17.3; toate trei rămân
    identice, iar intra se scalează cu exact 17.3 (control).
 
+10. SETUL PRINCIPAL (camere, Places365) a fost verificat la fel: 30.600
+    imagini, 30.570 hashuri unice, ZERO grupuri care ating și train și eval.
+    Există 30 de grupuri duplicate în interiorul lui train (0,1%) și 18 grupuri
+    cu etichete contradictorii între clase. Împărțirea taie train-ul în
+    3200 antrenare / 300 validare / 1500 neetichetate per clasă cu seed 42,
+    deci o pereche duplicată din train poate ajunge una în antrenare și una în
+    validare. Întrebare pentru tine: la 30 de grupuri din 30.000, merită
+    tratate, sau e suficient să fie declarate ca limitare?
+
 REZULTATE (acuratețe / inter-intra / silhouette)
                                     split original      split deduplicat
   CE                                68.40 / 1.10 / .110  65.71 / 1.03 / .092
