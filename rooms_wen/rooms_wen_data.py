@@ -99,7 +99,24 @@ def build_dataloaders(cfg: Dict[str, Any], pin: bool
     workers = int(t.get("num_workers", 2))
     common = dict(batch_size=int(t["batch_size"]), num_workers=workers,
                   pin_memory=pin, persistent_workers=workers > 0)
-    train_loader = DataLoader(train_ds, shuffle=True, drop_last=False, **common)
+
+    # A dedicated generator for the shuffling sampler, seeded from the run seed.
+    #
+    # Without it the sampler draws its permutation from the global PyTorch
+    # generator at the moment the epoch's iterator is created, so the image
+    # order depends on how much randomness was consumed beforehand. The three
+    # arms of this comparison consume different amounts -- the two centre-loss
+    # arms draw their initial centres, the cross-entropy arm does not -- and the
+    # arms would therefore see the images in different orders for the same seed,
+    # which is exactly what a seed-wise paired comparison must not allow.
+    #
+    # This also fixes the worker seeds: each worker's seed is derived from a
+    # base seed drawn from this generator, so the augmentation randomness is the
+    # same across arms too.
+    g = torch.Generator()
+    g.manual_seed(int(t["seed"]))
+    train_loader = DataLoader(train_ds, shuffle=True, drop_last=False,
+                              generator=g, **common)
     val_loader = DataLoader(val_ds, shuffle=False, drop_last=False, **common)
     return train_loader, val_loader, train_ds.class_to_idx
 

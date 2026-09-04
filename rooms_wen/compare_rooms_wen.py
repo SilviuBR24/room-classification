@@ -5,11 +5,11 @@ this project has reported so far comes from a single training run, so a
 difference of a few points cannot be separated from what a different
 initialisation would have produced anyway.
 
-    none      cross-entropy only. With seed 42 this must reproduce the
-              existing baseline run; it is the control on this folder's
-              training loop.
+    none      cross-entropy only. At seed 42 it should closely match the
+              existing baseline run; it is the consistency check on this
+              folder's training loop.
     gradient  the variant used in this thesis.
-    wen       Algorithm 1 as published.
+    wen       the original centre-update rule, Equation (4) and Algorithm 1 of Wen et al..
 
 Each arm is trained, then evaluated on the held-out test set, and the results
 are written to one CSV. A finished run directory is reused only if the settings
@@ -21,7 +21,10 @@ from __future__ import annotations
 
 import argparse
 import copy
+import csv
 import glob
+import json
+import math
 import os
 import subprocess
 import sys
@@ -43,7 +46,7 @@ MODES: List[Dict[str, str]] = [
     {"center_mode": "gradient",
      "description": "Centre Loss, the gradient variant used in this thesis"},
     {"center_mode": "wen",
-     "description": "Centre Loss, Algorithm 1 of Wen et al. as published"},
+     "description": "Centre Loss, the original centre-update rule, Equation (4) and Algorithm 1 of Wen et al."},
 ]
 
 SUMMARY_FIELDS = ["run_name", "center_mode", "seed", "description",
@@ -81,55 +84,81 @@ def read_text(path: str) -> str:
         return ""
 
 
+# Fields that differ between runs without changing the numbers. Everything
+# else in the configuration is compared, so nothing can be forgotten by
+# omission the way a hand-maintained list of checks can be.
+IGNORED_CONFIG_KEYS = {("run_name",), ("paths", "output_root"), ("paths",)}
+
+
+def canonical(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """The configuration reduced to what actually determines the result."""
+    import copy
+    c = copy.deepcopy(cfg)
+    c.pop("run_name", None)
+    c.pop("paths", None)
+    c.get("training", {}).pop("output_root", None)
+    return c
+
+
+def config_differences(old: Dict[str, Any], new: Dict[str, Any],
+                       prefix: str = "") -> List[str]:
+    """Every difference between two configurations, as readable paths."""
+    out: List[str] = []
+    for key in sorted(set(old) | set(new)):
+        path = f"{prefix}{key}"
+        a, b = old.get(key, "<missing>"), new.get(key, "<missing>")
+        if isinstance(a, dict) and isinstance(b, dict):
+            out.extend(config_differences(a, b, path + "."))
+        elif a != b:
+            out.append(f"{path}: was {a!r}, now {b!r}")
+    return out
+
+
 def run_matches(run_dir: str, base: Dict[str, Any],
                 variant: Dict[str, Any]) -> "tuple[bool, str]":
     """Is an existing run directory safe to reuse for this variant?
 
-    A finished-looking directory is not enough: it may have been produced by a
-    different configuration, and reusing it would file an old number under the
-    current settings without any error. Everything that changes the result is
-    compared, including the dataset directories -- all three of them, since the
-    validation directory decides which checkpoint is selected.
+    Three things have to hold, and a finished-looking directory shows none of
+    them on its own.
+
+    The configuration must match. Not a list of fields someone remembered to
+    check -- the whole configuration, minus the run name and the output
+    location, which do not change the numbers. A hand-kept list is a list that
+    quietly goes out of date.
+
+    The code must match. Nine runs spread over several Colab sessions can be
+    produced by different commits while the configuration stays identical, and
+    comparing configurations would never notice.
+
+    The environment must be compatible. PyTorch does not guarantee identical
+    results across versions or platforms, so the major PyTorch version is
+    compared and a difference in GPU is reported rather than ignored.
     """
     cfg_path = os.path.join(run_dir, "logs", "config_used.yaml")
     if not os.path.isfile(cfg_path):
         return False, "it has no logs/config_used.yaml, so its settings are unknown"
     with open(cfg_path, encoding="utf-8") as fh:
-        old = yaml.safe_load(fh)
+        old_cfg = yaml.safe_load(fh)
 
-    ot, om, od = old.get("training", {}), old.get("model", {}), old.get("data", {})
-    bt, bm, bd = base["training"], base["model"], base["data"]
-    checks = [
-        ("training.center_mode", ot.get("center_mode"), variant["center_mode"]),
-        ("training.seed", ot.get("seed"), variant["seed"]),
-        ("training.center_loss_weight", ot.get("center_loss_weight"),
-         bt["center_loss_weight"]),
-        ("training.center_loss_lr", ot.get("center_loss_lr"), bt["center_loss_lr"]),
-        ("training.epochs", ot.get("epochs"), bt["epochs"]),
-        ("training.batch_size", ot.get("batch_size"), bt["batch_size"]),
-        ("training.learning_rate", ot.get("learning_rate"), bt["learning_rate"]),
-        ("training.weight_decay", ot.get("weight_decay"), bt["weight_decay"]),
-        ("training.label_smoothing", ot.get("label_smoothing"), bt["label_smoothing"]),
-        ("training.grad_clip", ot.get("grad_clip"), bt["grad_clip"]),
-        ("training.scheduler", ot.get("scheduler"), bt["scheduler"]),
-        ("training.warmup_epochs", ot.get("warmup_epochs"), bt["warmup_epochs"]),
-        ("training.use_amp", ot.get("use_amp"), bt["use_amp"]),
-        ("model.arch", om.get("arch"), bm["arch"]),
-        ("model.image_size", om.get("image_size"), bm["image_size"]),
-        ("model.embed_dim", om.get("embed_dim"), bm["embed_dim"]),
-        ("model.depth", om.get("depth"), bm["depth"]),
-        ("model.num_heads", om.get("num_heads"), bm["num_heads"]),
-        ("model.num_classes", om.get("num_classes"), bm["num_classes"]),
-        ("data.train_dir", od.get("train_dir"), bd["train_dir"]),
-        ("data.val_dir", od.get("val_dir"), bd["val_dir"]),
-        ("data.eval_dir", od.get("eval_dir"), bd["eval_dir"]),
-        ("data.class_names", od.get("class_names"), bd["class_names"]),
-        ("data.norm_mean", od.get("norm_mean"), bd["norm_mean"]),
-        ("data.norm_std", od.get("norm_std"), bd["norm_std"]),
-    ]
-    for key, was, now in checks:
-        if was != now:
-            return False, f"{key} was {was!r} in that run but is {now!r} now"
+    want = variant_config(base, variant, workers=None)
+    # num_workers is set per invocation, so compare the saved value against the
+    # saved value of the other reused runs rather than against the base file.
+    diffs = config_differences(canonical(old_cfg), canonical(want))
+    diffs = [d for d in diffs if not d.startswith("training.num_workers")]
+    if diffs:
+        return False, "the configuration differs -- " + "; ".join(diffs[:3])
+
+    prov_path = os.path.join(run_dir, "logs", "provenance.json")
+    if not os.path.isfile(prov_path):
+        return False, ("it has no logs/provenance.json, so the code and "
+                       "environment that produced it are unknown")
+    with open(prov_path, encoding="utf-8") as fh:
+        prov = json.load(fh)
+    if not prov.get("git_commit"):
+        return False, "its provenance records no commit"
+    if prov.get("git_dirty"):
+        return False, (f"it was produced from a dirty working tree at "
+                       f"{prov['git_commit'][:8]}, so its code is not identified")
 
     ev = newest_eval(run_dir)
     if ev is None:
@@ -139,17 +168,83 @@ def run_matches(run_dir: str, base: Dict[str, Any],
     missing = [f for f in required if not os.path.isfile(os.path.join(ev, f))]
     if missing:
         return False, f"its evaluation is incomplete, missing {missing}"
+
+    if best_val_from_checkpoint(run_dir) is None:
+        return False, ("its checkpoint carries no best_val_accuracy, so the "
+                       "validation result cannot be recovered")
     return True, ""
 
 
-def build_variant_config(base: Dict[str, Any], v: Dict[str, Any],
-                         workers: Optional[int]) -> Path:
+def consistent_provenance(records: List[Dict[str, Any]]) -> List[str]:
+    """Complaints about runs that were not produced by the same code or runtime."""
+    seen: Dict[str, set] = {"git_commit": set(), "torch": set(), "gpu": set()}
+    for r in records:
+        for k in seen:
+            v = (r.get("provenance") or {}).get(k)
+            if v:
+                seen[k].add(str(v))
+    out = []
+    if len(seen["git_commit"]) > 1:
+        out.append(f"produced by {len(seen['git_commit'])} different commits: "
+                   f"{sorted(c[:8] for c in seen['git_commit'])}")
+    majors = {v.split("+")[0].rsplit(".", 1)[0] for v in seen["torch"]}
+    if len(majors) > 1:
+        out.append(f"produced under different PyTorch versions: {sorted(seen['torch'])}")
+    if len(seen["gpu"]) > 1:
+        out.append(f"produced on different GPUs: {sorted(seen['gpu'])}")
+    return out
+
+
+def best_val_from_checkpoint(run_dir: str) -> Optional[float]:
+    """The validation accuracy the run itself recorded.
+
+    Read from the checkpoint rather than parsed out of the log. The log line is
+    a formatted string that a change in wording would silently break, and after
+    a disconnection the summary was filing None for every reused run, losing the
+    validation column for work that had already been done.
+    """
+    ckpt = os.path.join(run_dir, "checkpoints", "best_model.pt")
+    if not os.path.isfile(ckpt):
+        return None
+    try:
+        import torch
+        state = torch.load(ckpt, map_location="cpu", weights_only=False)
+    except Exception:
+        return None
+    v = state.get("best_val_accuracy")
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return v if math.isfinite(v) else None
+
+
+def load_provenance(run_dir: str) -> Dict[str, Any]:
+    path = os.path.join(run_dir, "logs", "provenance.json")
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return {}
+
+
+def variant_config(base: Dict[str, Any], v: Dict[str, Any],
+                   workers: Optional[int]) -> Dict[str, Any]:
+    """The configuration this variant would be trained with."""
     cfg = copy.deepcopy(base)
     cfg["run_name"] = v["run_name"]
     cfg["training"]["center_mode"] = v["center_mode"]
     cfg["training"]["seed"] = v["seed"]
     if workers is not None:
         cfg["training"]["num_workers"] = int(workers)
+    return cfg
+
+
+def build_variant_config(base: Dict[str, Any], v: Dict[str, Any],
+                         workers: Optional[int]) -> Path:
+    cfg = variant_config(base, v, workers)
     out = HERE / f"config_used_{v['run_name']}.yaml"
     with open(out, "w", encoding="utf-8") as fh:
         yaml.safe_dump(cfg, fh, sort_keys=False, allow_unicode=True)
@@ -201,15 +296,43 @@ def print_summary(records: List[Dict[str, Any]]) -> None:
               "difference between arms against it.")
 
 
+def record_for(runs_dir: str, base: Dict[str, Any], v: Dict[str, Any],
+               minutes: Any = "") -> Optional[Dict[str, Any]]:
+    """Read back a finished run as a summary row, or None if it is not usable."""
+    run_dir = find_run_dir(runs_dir, v["run_name"])
+    if run_dir is None or newest_eval(run_dir) is None:
+        return None
+    ok, _ = run_matches(run_dir, base, v)
+    if not ok:
+        return None
+    ev = newest_eval(run_dir)
+    return {
+        "run_name": v["run_name"], "center_mode": v["center_mode"],
+        "seed": v["seed"], "description": v["description"],
+        "center_loss_weight": base["training"]["center_loss_weight"],
+        "center_loss_lr": base["training"]["center_loss_lr"],
+        "best_val_accuracy": best_val_from_checkpoint(run_dir),
+        "test_accuracy": parse_metric(read_text(os.path.join(ev, "metrics.txt")),
+                                      "Overall accuracy"),
+        "minutes": minutes,
+        "run_dir": run_dir,
+        "provenance": load_provenance(run_dir),
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run the nine-arm comparison.")
     ap.add_argument("--config", default=str(HERE / "config_rooms_wen.yaml"))
     ap.add_argument("--runs-dir", default=None)
     ap.add_argument("--num-workers", type=int, default=None)
     ap.add_argument("--force", action="store_true",
-                    help="retrain even if a matching finished run exists")
+                    help="train again even if a matching finished run exists; "
+                         "the new run goes to a new directory and the old one "
+                         "is left in place but no longer selected")
     ap.add_argument("--only", default=None,
-                    help="comma-separated centre modes to run, e.g. none,wen")
+                    help="comma-separated centre modes to train in this "
+                         "invocation, e.g. none,wen. The summary still reports "
+                         "every finished arm, not just these.")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -218,9 +341,13 @@ def main() -> None:
     runs_dir = args.runs_dir or base["paths"]["output_root"]
     os.makedirs(runs_dir, exist_ok=True)
 
+    all_variants = variants()
     wanted = ([m.strip() for m in args.only.split(",")] if args.only
               else [m["center_mode"] for m in MODES])
-    todo = [v for v in variants() if v["center_mode"] in wanted]
+    unknown = set(wanted) - {m["center_mode"] for m in MODES}
+    if unknown:
+        raise SystemExit(f"--only names unknown modes: {sorted(unknown)}")
+    todo = [v for v in all_variants if v["center_mode"] in wanted]
 
     print("=" * 92)
     print("ROOM DATASET -- CENTRE UPDATE RULE, ACROSS THREE SEEDS")
@@ -233,14 +360,16 @@ def main() -> None:
     print(f"lambda     : {base['training']['center_loss_weight']}, "
           f"centre rate {base['training']['center_loss_lr']}")
     print(f"seeds      : {SEEDS}")
-    print(f"arms       : {[v['run_name'] for v in todo]}")
+    print(f"to train   : {[v['run_name'] for v in todo]}")
+    if args.only:
+        print("             (the summary will still cover all nine arms)")
 
     if args.dry_run:
-        print("\n--dry-run: nothing was executed.")
+        print()
+        print("--dry-run: nothing was executed.")
         return
 
-    records: List[Dict[str, Any]] = []
-    trained_any = False
+    trained: Dict[str, Any] = {}
 
     for v in todo:
         name = v["run_name"]
@@ -248,78 +377,79 @@ def main() -> None:
         if existing and newest_eval(existing) and not args.force:
             reusable, why = run_matches(existing, base, v)
             if not reusable:
-                print(f"\n[stop] {name}: a finished run exists at {existing},")
+                print()
+                print(f"[stop] {name}: a finished run exists at {existing},")
                 print(f"       but it cannot be reused: {why}")
-                print("       Re-run with --force to overwrite it, or move it aside.")
+                print("       Re-run with --force to train it again into a new")
+                print("       directory, or move the old one aside.")
                 return
-            print(f"\n[skip] {name}: already evaluated at {existing}")
-            ev = newest_eval(existing)
-            m = read_text(os.path.join(ev, "metrics.txt"))
-            records.append({
-                "run_name": name, "center_mode": v["center_mode"], "seed": v["seed"],
-                "description": v["description"],
-                "center_loss_weight": base["training"]["center_loss_weight"],
-                "center_loss_lr": base["training"]["center_loss_lr"],
-                "best_val_accuracy": None,
-                "test_accuracy": parse_metric(m, "Overall accuracy"),
-                "minutes": "", "run_dir": existing,
-            })
+            print()
+            print(f"[skip] {name}: already finished at {os.path.basename(existing)}")
             continue
 
         cfg_path = build_variant_config(base, v, args.num_workers)
-        print("\n" + "=" * 92)
+        print()
+        print("" + "=" * 92)
         print(f"TRAIN  {name}   (mode={v['center_mode']}, seed={v['seed']})")
         print("=" * 92)
         t0 = time.time()
         subprocess.run([sys.executable, str(HERE / "train_rooms_wen.py"),
                         "--config", str(cfg_path)], check=True)
-        minutes = round((time.time() - t0) / 60.0, 1)
-        trained_any = True
+        trained[name] = round((time.time() - t0) / 60.0, 1)
 
         run_dir = find_run_dir(runs_dir, name)
         if run_dir is None:
             raise SystemExit(f"{name}: training finished but no run directory "
                              f"matching *_{name} appeared under {runs_dir}")
-        ckpt = os.path.join(run_dir, "checkpoints", "best_model.pt")
-        print(f"\nEVALUATE  {name}")
+        print()
+        print(f"EVALUATE  {name}")
         subprocess.run([sys.executable, str(HERE / "evaluate_rooms_wen.py"),
-                        "--checkpoint", ckpt], check=True)
+                        "--checkpoint",
+                        os.path.join(run_dir, "checkpoints", "best_model.pt")],
+                       check=True)
 
-        ev = newest_eval(run_dir)
-        m = read_text(os.path.join(ev, "metrics.txt"))
-        log = read_text(os.path.join(run_dir, "logs", "train.log"))
-        best_val = None
-        for line in log.splitlines():
-            if "Best val accuracy" in line:
-                try:
-                    best_val = float(line.rsplit(":", 1)[1].strip())
-                except (IndexError, ValueError):
-                    best_val = None
-        records.append({
-            "run_name": name, "center_mode": v["center_mode"], "seed": v["seed"],
-            "description": v["description"],
-            "center_loss_weight": base["training"]["center_loss_weight"],
-            "center_loss_lr": base["training"]["center_loss_lr"],
-            "best_val_accuracy": best_val,
-            "test_accuracy": parse_metric(m, "Overall accuracy"),
-            "minutes": minutes, "run_dir": run_dir,
-        })
+    # The summary covers every arm that is finished and valid, whether it was
+    # trained just now, in an earlier session, or under a different --only.
+    # Building it from what is on disk is what makes the run survive a Colab
+    # disconnection without losing the arms already done.
+    records: List[Dict[str, Any]] = []
+    for v in all_variants:
+        r = record_for(runs_dir, base, v, minutes=trained.get(v["run_name"], ""))
+        if r is not None:
+            records.append(r)
 
-    if not trained_any:
-        print("\n" + "!" * 92)
-        print("NOTHING WAS TRAINED: every arm was skipped as already complete.")
-        print("The table below therefore reports earlier runs, not this invocation.")
+    seen = [(r["center_mode"], r["seed"]) for r in records]
+    if len(seen) != len(set(seen)):
+        raise SystemExit(f"duplicate (mode, seed) rows in the summary: {seen}")
+
+    complaints = consistent_provenance(records)
+    if complaints:
+        print()
+        print("" + "!" * 92)
+        print("THESE RESULTS WERE NOT ALL PRODUCED THE SAME WAY:")
+        for c in complaints:
+            print("  -", c)
+        print("Comparing them across arms assumes they were. Check before using.")
         print("!" * 92)
 
-    import csv as _csv
     out = os.path.join(runs_dir, SUMMARY_FILENAME)
     with open(out, "w", newline="", encoding="utf-8") as fh:
-        w = _csv.DictWriter(fh, fieldnames=SUMMARY_FIELDS)
+        w = csv.DictWriter(fh, fieldnames=SUMMARY_FIELDS)
         w.writeheader()
         for r in records:
             w.writerow({k: r.get(k, "") for k in SUMMARY_FIELDS})
+
+    if not trained:
+        print()
+        print("" + "!" * 92)
+        print("NOTHING WAS TRAINED IN THIS INVOCATION: every requested arm was")
+        print("already finished. The table below reports earlier runs.")
+        print("!" * 92)
+
     print_summary(records)
-    print(f"\nSummary written to {out}")
+    print()
+    print(f"{len(records)}/9 arms finished")
+    print(f"Summary written to {out}")
     print(f"Finished {datetime.now():%Y-%m-%d %H:%M}")
 
 

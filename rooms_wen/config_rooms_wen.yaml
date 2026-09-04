@@ -10,11 +10,13 @@
 # the comparison neater:
 #
 #   "none"      cross-entropy only. The control. With seed 42 it must
-#               reproduce 2026-07-11_17-49_vit_s16_3200_baseline
+#               match 2026-07-11_17-49_vit_s16_3200_baseline closely
 #               (validation 0.5683, test 0.5633). This folder has its
-#               own training loop, so if the control does not
-#               reproduce, the loop differs somewhere and nothing
-#               else here can be trusted yet.
+#               own training loop, so this is a consistency check: an
+#               important difference must be investigated before the
+#               other arms are interpreted. Bit-for-bit equality is
+#               not expected, since the historical run used a
+#               different runtime, GPU and PyTorch build.
 #
 #   "gradient"  the variant used in this thesis. Centres are ordinary
 #               parameters stepped by SGD on the combined objective,
@@ -23,29 +25,42 @@
 #               Displacement per step is proportional to
 #               eta_c * lambda / B.
 #
-#   "wen"       Algorithm 1 of Wen et al.: a dedicated update with its
-#               own rate alpha, independent of lambda, normalised per
-#               class by (1 + n_j). Displacement per step is
-#               proportional to alpha / (1 + n_j).
+#   "wen"       the original centre-update rule, Equation (4) and
+#               Algorithm 1 of Wen et al.:
+#               a dedicated update with its own rate alpha,
+#               independent of lambda, normalised per class by
+#               (1 + n_j). Displacement per step is proportional to
+#               alpha / (1 + n_j). Only the centre update is taken
+#               from the paper: the paper writes its losses as sums
+#               and trains with SGD, while this project averages over
+#               the batch and uses AdamW, so the training procedure as
+#               a whole is not a reproduction of the paper.
 #
 # WHAT THE COMPARISON MEASURES HERE, AND WHAT IT DOES NOT
 # ------------------------------------------------------------------
 # The ratio of the two displacements is  alpha * B / (eta_c * lambda
-# * (1 + n_j)).  On FER2013 that ratio varied nine-fold across
-# classes, from about 63,000 for the rare "disgust" class to about
-# 7,100 for the common "happy" class, because n_j varied. That
-# variation is the rule difference proper, and it is what produced
-# the observed effect there.
+# * (1 + n_j)), where n_j is the number of images of class j in the
+# current batch. On FER2013, evaluated at each class's expected count
+# in a batch of 64 drawn from 28,709 training images, that ratio is
+# about 64,910 for the rare "disgust" class against about 7,492 for
+# the common "happy" class -- a nine-fold spread driven by class
+# frequency. The FER result is consistent with that mechanism; that
+# experiment did not isolate it, so it is not evidence that the
+# per-class normalisation is what produced the effect.
 #
-# The room dataset is balanced: 3,200 images in every class, so with
-# B = 64 the expected n_j is 10.67 for all six classes and the ratio
-# is the same number, about 10,970, everywhere. On this dataset the
-# two rules therefore differ by a uniform factor on the centre
-# displacement, not by the per-class behaviour that distinguishes
-# them. Any difference found here must be reported as the effect of
-# the rules as specified -- which is the question being asked -- and
-# not as evidence about per-class normalisation, which balanced data
-# cannot show.
+# The room dataset is balanced: 3,200 images in every class. That
+# removes the systematic difference between classes, but it does not
+# make the ratio constant. n_j is hypergeometric, with mean 10.67 and
+# standard deviation 2.98 at B = 64, so the ratio is about 10,971 at
+# the mean and moves between roughly 8,741 and 14,729 within one
+# standard deviation, batch by batch and class by class.
+#
+# So balancing removes the systematic frequency difference between
+# classes; it does not remove the per-batch fluctuation, and the Wen
+# rule still normalises per class. This experiment does not separate
+# the normalisation from the large difference in effective rate. It
+# compares the two complete rules at the hyperparameters each is used
+# with, which is the question being asked.
 #
 # `compare_rooms_wen.py` overrides `run_name`, `center_mode` and
 # `seed`; everything else is taken from this file unchanged.
@@ -75,8 +90,9 @@ data:
   val_dir:   "/content/dataset_split/val"
   eval_dir:  "/content/dataset_split/eval"
   # Fixed, explicit class order. Index = position in this list.
-  # Balanced by construction: 3,200 training images per class, which is
-  # exactly why the per-class part of the rule difference cannot appear here.
+  # Balanced by construction: 3,200 training images per class, so there is no
+  # systematic frequency difference between classes -- though n_j still
+  # fluctuates from batch to batch. See the note at the top of this file.
   class_names:
     - bathroom
     - bedroom
@@ -88,7 +104,7 @@ data:
   norm_std:  [0.229, 0.224, 0.225]
 
 training:
-  # Identical to the 3200 runs, so the control can reproduce them.
+  # Identical to the 3200 runs, so the control can be checked against them.
   epochs: 50
   batch_size: 64
   learning_rate: 0.0003

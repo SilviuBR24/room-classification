@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import math
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -168,9 +169,14 @@ def main() -> None:
             if not mask.any():
                 continue
             mu = emb[mask].mean(0)
-            cos = float(C[k] @ mu / (np.linalg.norm(C[k]) * np.linalg.norm(mu)))
+            # A zero-length centre or centroid has no direction, so the cosine
+            # is undefined rather than zero. Dividing anyway would have written
+            # nan or raised, depending on the platform.
+            denom = float(np.linalg.norm(C[k]) * np.linalg.norm(mu))
+            cos = float(C[k] @ mu) / denom if denom > 0 else float("nan")
             rows.append({"class": name, "test_images": int(mask.sum()),
-                         "cosine_centre_vs_centroid": round(cos, 6)})
+                         "cosine_centre_vs_centroid":
+                             round(cos, 6) if math.isfinite(cos) else ""})
         with open(out_dir / "centre_alignment.csv", "w", newline="",
                   encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
