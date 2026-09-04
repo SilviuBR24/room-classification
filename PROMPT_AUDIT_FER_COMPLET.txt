@@ -3,7 +3,7 @@ Unde ceva e corect, spune scurt "confirmat". Petrece efortul pe ce e greșit,
 nedovedit sau formulat mai tare decât permit datele.
 
 REPOZITORIU: https://github.com/SilviuBR24/room-classification
-COMMIT: 01c3794d (ramura main)
+COMMIT: c7167424 (ramura main)
 
 CONTEXT
 Disertație UPB/ETTI: "Room Type Recognition Using Clustering Cost Functions for
