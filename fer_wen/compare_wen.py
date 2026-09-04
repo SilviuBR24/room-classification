@@ -144,6 +144,14 @@ def run_matches(run_dir: str, base: Dict[str, Any],
         ("training.seed", old["training"].get("seed"), base["training"]["seed"]),
         ("model.image_size", old["model"].get("image_size"), base["model"]["image_size"]),
         ("model.num_classes", old["model"].get("num_classes"), base["model"]["num_classes"]),
+        ("training.weight_decay", old["training"].get("weight_decay"),
+         base["training"]["weight_decay"]),
+        # The dataset was missing from this list entirely. It is the setting
+        # that changes the result most, and the one that actually went wrong
+        # once: a run trained on the split with duplicates would have been
+        # reused for the deduplicated configuration without complaint.
+        ("data.train_dir", old["data"].get("train_dir"), base["data"]["train_dir"]),
+        ("data.eval_dir", old["data"].get("eval_dir"), base["data"]["eval_dir"]),
     ]
     for key, was, now in checks:
         if was != now:
