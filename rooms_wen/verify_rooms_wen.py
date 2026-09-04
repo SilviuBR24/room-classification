@@ -377,15 +377,17 @@ def main() -> None:
     stray = [l for l in dirty.splitlines() if "config_used_" in l]
     check("git status nu vede fisiere config_used_*", not stray, str(stray[:2]))
 
-    head(11, "AMP cu DOI optimizatori: pasii raman simetrici")
+    head(11, "AMP cu DOI optimizatori, ambele directii, optimizatorii reali")
     if not torch.cuda.is_available():
         check("simetrie cu doi optimizatori", None, "fara GPU aici")
     else:
         dev = "cuda"
-        def two_opt(make_inf):
+
+        def step_once(where_inf):
+            """One iteration with the real optimisers: AdamW plus SGD."""
             net = torch.nn.Linear(8, 6).to(dev)
             cen = torch.nn.Parameter(torch.randn(6, 6, device=dev))
-            om = torch.optim.SGD(net.parameters(), lr=0.1)
+            om = torch.optim.AdamW(net.parameters(), lr=3e-4, weight_decay=0.05)
             oc = torch.optim.SGD([cen], lr=0.5)
             sc = torch.amp.GradScaler(dev, enabled=True)
             w0, c0 = net.weight.detach().clone(), cen.detach().clone()
@@ -394,24 +396,52 @@ def main() -> None:
                 loss = (net(torch.randn(16, 8, device=dev)).pow(2).mean()
                         + 0.0005 * cen.pow(2).mean())
             sc.scale(loss).backward()
-            if make_inf:
+            if where_inf == "model":
                 net.weight.grad[0, 0] = float("inf")
+            elif where_inf == "centres":
+                cen.grad[0, 0] = float("inf")
             sc.unscale_(om); sc.unscale_(oc)
-            finite = all(torch.isfinite(q.grad).all()
-                         for q in net.parameters() if q.grad is not None)
-            if not finite and cen.grad is not None:
-                cen.grad.zero_()
+
+            # exactly the logic in train_rooms_wen.py
+            def fin(ps):
+                return all(torch.isfinite(q.grad).all()
+                           for q in ps if q.grad is not None)
+            ok = fin(net.parameters()) and fin([cen])
+            if not ok:
+                for q in net.parameters():
+                    q.grad = None
+                cen.grad = None
             s0 = sc.get_scale()
             sc.step(om); sc.step(oc); sc.update()
             return (not torch.equal(w0, net.weight.detach()),
                     not torch.equal(c0, cen.detach()),
                     sc.get_scale() < s0)
-        mm, mc, dropped = two_opt(False)
-        check("pas normal: ambele se misca", mm and mc)
-        mm, mc, dropped = two_opt(True)
-        check("la overflow nu se misca niciuna", (not mm) and (not mc),
+
+        mm, mc, _ = step_once(None)
+        check("pas normal: ambele se misca", mm and mc, f"model={mm} centre={mc}")
+        mm, mc, drop = step_once("model")
+        check("overflow in model: nu se misca niciuna", not mm and not mc,
               f"model={mm} centre={mc}")
-        check("scalerul isi coboara totusi scala", dropped)
+        check("overflow in model: scala coboara", drop)
+        mm, mc, drop = step_once("centres")
+        check("overflow in centre: nu se misca niciuna", not mm and not mc,
+              f"model={mm} centre={mc}")
+        check("overflow in centre: scala coboara", drop)
+
+        # capcana pe care zero-ul nu o rezolva: AdamW aplica weight decay
+        # si cu gradient zero, deci parametrii tot se misca
+        net = torch.nn.Linear(8, 6).to(dev)
+        om = torch.optim.AdamW(net.parameters(), lr=3e-4, weight_decay=0.05)
+        w0 = net.weight.detach().clone()
+        om.zero_grad(set_to_none=True)
+        net(torch.randn(4, 8, device=dev)).pow(2).mean().backward()
+        for q in net.parameters():
+            q.grad.zero_()
+        om.step()
+        moved_on_zero = not torch.equal(w0, net.weight.detach())
+        check("AdamW misca parametrii chiar cu gradient zero, deci "
+              "neutralizarea trebuie facuta cu None", moved_on_zero,
+              f"s-a miscat cu gradient zero: {moved_on_zero}")
 
     head(12, "Formulele Center Loss nu au fost modificate")
     def sh(*a):

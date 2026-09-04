@@ -357,15 +357,33 @@ def main() -> None:
             # was asked to take found the overflow. Skipping both steps and
             # calling update() leaves the scale where it was -- measured: it
             # stayed at 65536 -- and every following batch would overflow again.
-            model_finite = all(
-                torch.isfinite(p.grad).all()
-                for p in model.parameters() if p.grad is not None)
+            def _finite(params) -> bool:
+                return all(torch.isfinite(q.grad).all()
+                           for q in params if q.grad is not None)
+
+            model_finite = _finite(model.parameters())
+            centres_finite = (optimizer_center is None
+                              or _finite(center_loss.parameters()))
+            model_finite = model_finite and centres_finite
+
             if not model_finite:
                 skipped_steps += 1
+                # Whichever side still has finite gradients would otherwise
+                # step on its own, so its gradients are removed. Both
+                # directions matter: an overflow in the centre gradients would
+                # otherwise let the network advance while the centres stood
+                # still, which is the same asymmetry as the reverse case.
+                #
+                # Removed, not zeroed. AdamW applies its decoupled weight decay
+                # to every parameter it is given, gradient or not, so a zero
+                # gradient still shrinks the weights -- measured: the model
+                # moved anyway. A gradient of None makes the optimiser skip the
+                # parameter entirely.
+                for q in model.parameters():
+                    q.grad = None
                 if optimizer_center is not None:
-                    for p in center_loss.parameters():
-                        if p.grad is not None:
-                            p.grad.zero_()
+                    for q in center_loss.parameters():
+                        q.grad = None
 
             centres_before = (center_loss.centers.detach().clone()
                               if center_loss is not None else None)

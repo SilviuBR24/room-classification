@@ -365,7 +365,6 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Run the nine-arm comparison.")
     ap.add_argument("--config", default=str(HERE / "config_rooms_wen.yaml"))
     ap.add_argument("--runs-dir", default=None)
-    ap.add_argument("--num-workers", type=int, default=None)
     ap.add_argument("--force", action="store_true",
                     help="train again even if a matching finished run exists; "
                          "the new run goes to a new directory and the old one "
@@ -414,12 +413,18 @@ def main() -> None:
 
     for v in todo:
         name = v["run_name"]
+        # Look for a usable run before anything else. Checking only the newest
+        # directory meant an arm interrupted before its evaluation hid the
+        # finished arm behind it, and it would have been trained again for
+        # nothing -- two hours each time.
+        valid = None if args.force else find_valid_run_dir(runs_dir, base, v)
+        if valid is not None:
+            print(f"[skip] {name}: already finished at {os.path.basename(valid)}")
+            continue
+
         existing = find_run_dir(runs_dir, name)
         if existing and newest_eval(existing) and not args.force:
             reusable, why = run_matches(existing, base, v)
-            if not reusable and find_valid_run_dir(runs_dir, base, v):
-                print(f"[skip] {name}: an older valid run exists")
-                continue
             if not reusable:
                 print()
                 print(f"[stop] {name}: a finished run exists at {existing},")
@@ -431,7 +436,7 @@ def main() -> None:
             print(f"[skip] {name}: already finished at {os.path.basename(existing)}")
             continue
 
-        cfg_path = build_variant_config(base, v, args.num_workers)
+        cfg_path = build_variant_config(base, v, None)
         print()
         print("" + "=" * 92)
         print(f"TRAIN  {name}   (mode={v['center_mode']}, seed={v['seed']})")
