@@ -1,132 +1,173 @@
-ROL: Ești auditor independent. Sarcina ta NU este să confirmi ce s-a făcut, ci
-să găsești greșeli. Presupune că fiecare afirmație de mai jos poate fi falsă și
-verific-o. Dacă ceva este corect, spune scurt "confirmat" și treci mai departe;
-petrece timpul pe ce e greșit, nedovedit sau formulat prea tare.
+ROL: Auditor independent al unei lucrări de disertație. Nu confirma, verifică.
+Unde ceva e corect, spune scurt "confirmat". Petrece efortul pe ce e greșit,
+nedovedit sau formulat mai tare decât permit datele.
 
 REPOZITORIU: https://github.com/SilviuBR24/room-classification
-COMMIT DE AUDITAT: 7e2b4d5b (ramura main)
+COMMIT: 01c3794d (ramura main)
 
 CONTEXT
-Lucrare de disertație, UPB/ETTI: "Room Type Recognition Using Clustering Cost
-Functions for the Embedding Space". Experimentul principal este ViT-S/16
-antrenat de la zero pe 6 clase de camere din Places365, cu Center Loss și
-auto-etichetare semi-supervizată. Coordonatorul a cerut suplimentar un control
-pe recunoașterea expresiilor faciale (FER2013) și o comparație cu ResNet-18.
+Disertație UPB/ETTI: "Room Type Recognition Using Clustering Cost Functions for
+the Embedding Space". Experimentul principal: ViT-S/16 antrenat de la zero pe 6
+clase de camere din Places365, cu Center Loss și auto-etichetare
+semi-supervizată. Coordonatorul a cerut în plus un control pe expresii faciale
+(FER2013) și o comparație cu ResNet-18.
 
-Center Loss este propus de Wen et al., ECCV 2016 — pentru recunoașterea
-IDENTITĂȚII faciale, nu a expresiei. FER2013 este ales aici ca domeniu diferit,
-nu ca domeniul original al metodei. Dacă găsești în cod sau în comentarii
-vreo formulare care sugerează altceva, semnaleaz-o.
+Center Loss (Wen et al., ECCV 2016) a fost propus pentru recunoașterea
+IDENTITĂȚII faciale, nu a expresiei. FER2013 e folosit aici ca domeniu diferit,
+nu ca domeniul original al metodei.
 
-CE S-A FĂCUT PE FER
-Opt rulări, ResNet-18 de la zero, 96x96, 50 de epoci, lambda 0.0005, seed fix,
-variind pe două axe independente:
-  axa 1 — setul de date: splitul original (conține imagini duplicate partajate
-          între partiții) vs. splitul deduplicat
-  axa 2 — regula de actualizare a centrelor: varianta prin gradient folosită în
-          toată lucrarea vs. Algoritmul 1 din articolul original
+EXPERIMENTUL FER: opt rulări, ResNet-18 de la zero, două axe independente —
+setul de date (split original, cu duplicate / split deduplicat) și regula de
+actualizare a centrelor (varianta prin gradient folosită în lucrare /
+Algoritmul 1 din articol).
 
-Fișiere relevante:
-  fer_baseline/     — pipeline pe infrastructura comună (train.py partajat)
-  fer_wen/          — implementare complet separată, propria buclă de antrenare
-  fer_figures/make_fer_figures.py — tabelul și figurile comparative
-  dataset_FER/ (nu e în repo) — 33.977 imagini, 27.182 / 3.398 / 3.397
+=========================================================================
+PARTEA 1 — CE A FOST DEJA VERIFICAT, ȘI CUM
+=========================================================================
+Nu relua munca asta. Atacă METODA de verificare: dacă o consideri insuficientă
+sau greșit concepută, spune de ce și ce ar fi verificarea corectă.
 
-REZULTATELE PE CARE TREBUIE SĂ LE VERIFICI
-                                    acc      n     inter/intra  silhouette
-  split original, CE                68.40%  3589      1.10        0.110
-  split original, CE+CL gradient    68.07%  3589      1.31        0.155
-  split original, CL gradient (rep) 68.40%  3589      1.29        0.154
-  split original, CL Algoritm 1     67.43%  3589      1.14        0.126
-  split deduplicat, CE              65.71%  3397      1.03        0.092
-  split deduplicat, CE+CL gradient  65.76%  3397      1.15        0.131
-  split deduplicat, CL grad (rep)   64.82%  3397      1.15        0.125
-  split deduplicat, CL Algoritm 1   65.06%  3397      1.03        0.106
+1. Toate cele opt acurateți și toate cele opt scoruri macro-F1 au fost
+   recalculate din predictions.csv al fiecărei rulări și comparate cu CSV-ul
+   de sinteză. Se potrivesc toate.
+2. Splitul deduplicat: 33.977 imagini, 33.977 hashuri unice. Zero grupuri care
+   ating mai multe partiții, zero duplicate în interiorul unei partiții, zero
+   etichete contradictorii. Manifestul se potrivește 33977/33977 pe hash și pe
+   partiția atribuită.
+3. Bilanțul deduplicării se închide exact: 35.887 imagini originale → 34.034
+   grupuri unice → minus 57 grupuri cu etichete contradictorii = 33.977.
+   Fișierul dropped_label_conflicts.csv raportează exact 57 grupuri / 160
+   imagini, iar remăsurarea independentă dă aceleași cifre.
+4. Configurațiile efective ale celor opt rulări, citite din logs/config_used.yaml:
+   identice pe epoci (50, și 50 chiar parcurse), batch 64, seed 42, lr 3e-4,
+   weight decay 0.05, lambda 5e-4, rata centrelor 0.5, AMP pornit, 96x96,
+   7 clase. Diferă doar pe ce trebuie: setul de date și modul centrelor.
+5. Ordinea claselor e identică la toate opt
+   (angry,disgust,fear,happy,sad,surprise,neutral — NU alfabetică), deci
+   legendele figurilor sunt corecte.
+6. Niciun set de embeddinguri nu e normalizat; labels.npy corespunde exact cu
+   predictions.csv la toate opt.
+7. Algoritmul 1 a fost verificat NUMERIC: implementarea vectorizată din
+   fer_wen/wen_center_loss.py dă acelaşi rezultat (eroare max 2.4e-07) ca
+   formula din articol calculată naiv, exemplu cu exemplu, pe probe aleatoare.
+   alpha nu depinde de lambda.
+8. Toate p-valorile McNemar exacte se confirmă la a șasea zecimală cu
+   scipy.stats.binomtest. Intervalele Wilson se suprapun cu Clopper-Pearson.
+9. Invarianța la scară a metricilor (inter/intra, silhouette, Davies-Bouldin)
+   a fost testată empiric înmulțind embeddingurile cu 17.3; toate trei rămân
+   identice, iar intra se scalează cu exact 17.3 (control).
 
-CE VERIFICI, ÎN ORDINEA IMPORTANȚEI
+REZULTATE (acuratețe / inter-intra / silhouette)
+                                    split original      split deduplicat
+  CE                                68.40 / 1.10 / .110  65.71 / 1.03 / .092
+  CE + CL gradient                  68.07 / 1.31 / .155  65.76 / 1.15 / .131
+  CL gradient (a doua bază de cod)  68.40 / 1.29 / .154  64.82 / 1.15 / .125
+  CL Algoritmul 1                   67.43 / 1.14 / .126  65.06 / 1.03 / .106
 
-1. DEDUPLICAREA — este splitul chiar fără scurgere?
-   Citește fer_baseline/find_duplicates.py și fer_baseline/make_clean_split.py.
-   Duplicatele au fost găsite prin hash SHA-1 pe tabloul de pixeli în tonuri de
-   gri, iar splitul atribuie fiecare grup de hash-uri identice unei singure
-   partiții. Întrebări la care vreau răspuns argumentat:
-   - Poate rămâne vreo scurgere după această procedură? Sub ce condiții?
-   - Hash-ul pe pixeli ratează duplicate aproape-identice (recompresie, un
-     pixel diferit, redimensionare). Cât de mult contează asta aici și cum
-     s-ar putea estima câte au rămas?
-   - Grupurile cu etichete contradictorii au fost eliminate
-     (dropped_label_conflicts.csv). Este eliminarea alegerea corectă, sau
-     introduce ea însăși o distorsiune? Ce ar fi trebuit raportat?
-   - Verifică independent aritmetica: 27182+3398+3397 = 33977. Setul FER2013
-     original are 35887 de imagini. Diferența trebuie explicată integral de
-     duplicate plus conflicte de etichetă. Se închide socoteala?
+McNemar pereche: Center Loss p=0.643 (original) și p=0.967 (deduplicat);
+gradient vs Algoritm 1 p=0.147 și p=0.762; replicare între cele două baze de
+cod p=0.198. Nimic semnificativ în interiorul unui split.
 
-2. ALGORITMUL 1 — este implementat corect?
-   Citește fer_wen/wen_center_loss.py, metoda update_centers. Implementarea:
-       numerator = counts_j * c_j - sum_of_features_j
-       delta_j   = numerator / (1 + counts_j)
-       c_j      -= alpha * delta_j
-   Compar-o cu ecuația (4) și Algoritmul 1 din Wen et al. 2016. Verifică:
-   - semnul și direcția deplasării;
-   - dacă numitorul este (1 + n_j) cu n_j numărul de exemple din clasa j în
-     lotul curent, așa cum cere articolul;
-   - dacă alpha este într-adevăr independent de lambda, spre deosebire de
-     varianta prin gradient unde lambda intră în gradientul centrului;
-   - dacă actualizarea trebuie făcută înainte sau după pasul optimizatorului
-     pe parametrii rețelei, și dacă ordinea din train_wen.py respectă asta;
-   - dacă centrele trebuie să fie buffer (nu parametri) în acest mod, și dacă
-     asta e respectat.
+Bootstrap (400 reeșantionări) pe inter/intra, split deduplicat:
+Center Loss +0.124, 95% [+0.038, +0.213]; Algoritm 1 față de gradient −0.115,
+95% [−0.192, −0.045]. Ambele exclud zero.
 
-3. STATISTICA — sunt corecte concluziile de semnificație?
-   În fer_figures/make_fer_figures.py, eroarea standard este sqrt(p(1-p)/n) iar
-   eroarea diferenței este sqrt(se_a^2 + se_b^2). Verifică:
-   - Este corect să tratăm cele două rulări ca independente, când sunt evaluate
-     pe ACELEAȘI imagini de test? Formula corectă pentru date pereche este
-     testul McNemar. Cât de mult schimbă asta concluziile? Fișierele
-     predictions.csv există pentru fiecare rulare, deci McNemar e calculabil.
-   - Recalculează: 65.76% - 65.71% pe n=3397; și 68.40% - 65.71% pe n diferiți.
-     Este legitim să comparăm direct două acurateți măsurate pe seturi de test
-     DIFERITE (3589 vs 3397 imagini)? Afirmația "deduplicarea a costat 2.70pp"
-     depinde de asta. Formulează corect ce se poate și ce nu se poate afirma.
-   - O singură rulare per configurație, seed fix. Ce nu putem afirma din cauza
-     asta? Diferențele de geometrie (inter/intra +0.12, +0.21) sunt raportate
-     fără nicio bară de eroare — este asta acceptabil?
+SCURGEREA, măsurată în interiorul unui singur set de test: modelul antrenat pe
+splitul original, notat pe propriul set de test, obține 92.36% pe cele 288 de
+imagini care apar și în antrenare și 66.31% pe cele 3301 care nu apar. Diferență
+26.05pp. Iar 66.31% și 65.71% (modelul curat, antrenat separat) diferă cu 0.60pp.
+Contaminarea: 288 imagini (8.02%) în antrenare, 314 (8.75%) în antrenare sau
+validare.
 
-4. METRICILE DE GEOMETRIE
-   inter = media distanțelor dintre centroizii de clasă; intra = media
-   distanțelor de la punct la centroidul propriei clase; raportul inter/intra
-   este comparat cu pragul 1. Verifică:
-   - Este pragul 1 justificat teoretic, sau este o convenție? Ce înseamnă de
-     fapt raportul 1.03 vs 1.15?
-   - Center Loss micșorează explicit distanțele intra-clasă. Este atunci
-     circular să raportăm ca rezultat că el îmbunătățește inter/intra și
-     silhouette? Cum ar trebui formulată concluzia ca să nu fie circulară?
-   - Metricile sunt calculate în spațiul original de 512 dimensiuni, iar t-SNE
-     este folosit doar pentru ilustrare. Confirmă că asta reiese clar din cod.
+=========================================================================
+PARTEA 2 — ÎNTREBĂRILE DESCHISE
+=========================================================================
+Aici vreau răspunsuri argumentate, nu confirmări.
 
-5. CONTROLUL DE REPLICARE
-   Rulările fer_clean_crossentropy_centerloss (infrastructura comună) și
-   fer_wen_clean_gradient (cod complet separat) folosesc același algoritm.
-   Au dat 65.76% vs 64.82%, inter/intra 1.15 vs 1.15, silhouette 0.131 vs
-   0.125. Este aceasta o replicare reușită sau diferența de 0.94pp indică o
-   diferență reală între cele două implementări? Compară cele două bucle de
-   antrenare (vit_s16_baseline/src/train.py și fer_wen/train_wen.py) și
-   enumeră TOATE diferențele care ar putea produce 0.94pp: augmentări,
-   planificarea ratei de învățare, weight decay, ordinea loturilor, AMP,
-   criteriul de selecție a modelului "best".
+Î1. VARIANȚA DE SEED. O singură rulare per configurație, seed 42 peste tot.
+    Bootstrap-ul acoperă doar zgomotul de eșantionare al setului de test, nu
+    varianța de inițializare. Afirmația "Center Loss ridică inter/intra cu
+    +0.124" e susținută sau nu? Câte seed-uri sunt minimul defensabil pentru o
+    disertație de master, și cum se raportează corect cu 3 seed-uri (medie ±
+    abatere standard? interval? test?). Dacă răspunsul e "nu se poate afirma
+    fără seed-uri", spune asta clar — am timp să rulez.
 
-6. PROTECȚIILE DIN COD
-   compare_fer.py și compare_wen.py refolosesc un director de rulare existent
-   doar dacă logs/config_used.yaml se potrivește pe: use_center_loss,
-   center_loss_weight, epochs, batch_size, seed, image_size, train_dir,
-   eval_dir. Întreabă-te: ce setare care SCHIMBĂ rezultatul lipsește din lista
-   asta și ar putea trece nedetectată?
+Î2. CIRCULARITATE. Center Loss optimizează explicit compactitatea intra-clasă.
+    E atunci circular să raportăm ca REZULTAT că îmbunătățește inter/intra și
+    silhouette? Care e formularea corectă, care păstrează ce e netrivial
+    (că nu costă acuratețe, și că Algoritmul 1 o face mai puțin) fără să
+    prezinte drept descoperire ceea ce e prin construcție?
 
+Î3. DUPLICATE APROXIMATIVE. Deduplicarea folosește SHA-1 pe tabloul de pixeli,
+    deci prinde doar duplicatele exacte. Recompresările, decalajele de un pixel
+    și redimensionările au rămas. Cum se estimează practic câte au rămas
+    (perceptual hash? embedding nearest-neighbour?), cât de mult ar putea
+    schimba cifrele, și cum se formulează onest limitarea în teză?
+
+Î4. DIFERENȚA DINTRE CELE DOUĂ BAZE DE COD. Același algoritm, două
+    implementări independente: 65.76% vs 64.82%, adică 0.94pp, p=0.198.
+    Geometria e identică (1.15 vs 1.15). Compară vit_s16_baseline/src/train.py
+    cu fer_wen/train_wen.py și enumeră TOATE diferențele care ar putea produce
+    0.94pp: augmentări, planificarea ratei de învățare, criteriul de selecție a
+    modelului "best", ordinea loturilor, tratarea AMP. Este 0.94pp explicabil
+    prin ele, sau indică o eroare pe care nu am găsit-o?
+
+Î5. CUM SE SCRIE UN REZULTAT NUL. Pe FER, Center Loss nu mișcă acuratețea în
+    niciun sens detectabil. Acesta e un rezultat util (control negativ pentru
+    experimentul principal, unde Center Loss ajută), dar nu știu cum se
+    prezintă într-o disertație fără să pară eșec. Dă-mi structura concretă a
+    subcapitolului: ce se afirmă, ce nu se afirmă, cum se leagă de rezultatul
+    pozitiv de pe camere unde raportul de bază depășește 1.
+
+Î6. CE LIPSEȘTE DIN PAZNIC. Scripturile de comparație refolosesc un director de
+    rulare existent doar dacă config_used.yaml se potrivește pe: modul/comutatorul
+    centrelor, lambda, rata centrelor, epoci, batch, learning rate, weight decay,
+    seed, image_size, num_classes, train_dir, eval_dir, plus prezența fișierelor
+    de evaluare. Ce setare care SCHIMBĂ rezultatul lipsește încă din listă?
+
+=========================================================================
+PARTEA 3 — ÎNTREBARE DESPRE PROCESUL DE LUCRU
+=========================================================================
+Lucrez cu un asistent AI (Claude) pe acest proiect. Am observat un tipar pe care
+vreau să-l rezolv, nu să-l ascund.
+
+Când îi cer explicit "mai verifică o dată", găsește aproape de fiecare dată o
+eroare reală în propria lui muncă. Exemple concrete din acest proiect:
+  - a raportat bara de eroare tratând două rulări ca eșantioane independente,
+    deși erau notate pe aceleași imagini; testul corect era McNemar pereche;
+  - a afirmat "deduplicarea a costat 2.70pp" scăzând două acurateți măsurate pe
+    seturi de test DIFERITE, ceea ce nu e o comparație validă; măsurătoarea
+    corectă, în interiorul unui singur set de test, a dat 26pp pe imaginile
+    afectate;
+  - a raportat diferențe de geometrie fără nicio bară de eroare;
+  - a raportat 278, apoi 314 imagini contaminate în momente diferite, fără să
+    explice de ce s-a schimbat cifra (ambele erau corecte, dar măsurau lucruri
+    diferite — abia a treia oară a lămurit-o);
+  - a susținut că lipsesc intrări din bibliografia licenței, când de fapt
+    extractorul de PDF rupea "[10]" în "[ 1 0 ]".
+Fiecare dintre acestea a fost prinsă pentru că EU am cerut reverificarea, nu
+pentru că a verificat el din proprie inițiativă. I-am dat instrucțiune
+permanentă să verifice implicit, și s-a îmbunătățit, dar nu am garanția că e
+suficient.
+
+Întrebarea mea: ce procedură concretă pot impune ca greșelile să fie prinse
+sistematic, fără să depindă de intuiția mea de a întreba "ești sigur?".
+Interesează-mă răspunsuri practicabile: ce verificări automate ar trebui să
+existe în repozitoriu, ce ar trebui să ceară un script înainte să raporteze un
+număr, ce reguli de scriere (fiecare cifră însoțită de metoda prin care a fost
+obținută și de ce ar invalida-o), și dacă are sens să pun două modele să se
+verifice reciproc. Dacă vezi în cod locuri unde o astfel de verificare ar fi
+trebuit să existe și lipsește, arată-le.
+
+=========================================================================
 FORMATUL RĂSPUNSULUI
-Pentru fiecare din cele 6 secțiuni: verdict (corect / greșit / nedovedit),
-apoi dovada. Unde găsești o eroare, dă corecția concretă — patch sau formulă,
-nu o observație generală. La final, o listă scurtă a lucrurilor pe care lucrarea
-NU are voie să le afirme pe baza acestor date.
+=========================================================================
+Partea 1: doar unde consideri metoda de verificare insuficientă.
+Partea 2: pentru fiecare întrebare, verdict plus argument; unde e o eroare, dă
+corecția concretă — formulă sau patch, nu observație generală.
+Partea 3: procedură concretă, nu principii generale.
+La final: lista scurtă a lucrurilor pe care lucrarea NU are voie să le afirme pe
+baza acestor date.
 
 Nu inventa numere. Dacă îți lipsește un fișier ca să verifici ceva, spune exact
-ce fișier îți trebuie.
+care.
