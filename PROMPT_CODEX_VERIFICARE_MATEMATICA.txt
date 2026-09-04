@@ -1,0 +1,144 @@
+ROL: Verificare matematică, înainte ca aceste nouă rulări să consume 18 ore de
+GPU. Nu confirma — verifică. Unde ceva e corect, spune scurt "confirmat" și
+treci mai departe. Interesează-mă exclusiv greșelile care ar face rezultatele
+false sau neinterpretabile.
+
+REPOZITORIU: https://github.com/SilviuBR24/room-classification
+COMMIT: 28ab1ff0 (ramura main)
+FOLDER DE VERIFICAT: rooms_wen/
+
+CE URMEAZĂ SĂ RULEZE
+Nouă antrenări ViT-S/16 de la zero pe 6 clase de camere din Places365
+(19.200 antrenare / 1.800 validare / 600 test), în trei brațe × trei seed-uri
+(42, 43, 44):
+
+  none       doar entropie încrucișată — control
+  gradient   varianta de Center Loss folosită în toată lucrarea
+  wen        Algoritmul 1 din Wen et al. 2016, exact ca în articol
+
+Fiecare regulă rulează exact cum e definită. Niciuna nu e ajustată ca să facă
+comparația mai curată, fiindcă întrebarea este care dintre cele două, așa cum
+sunt folosite, e mai bună.
+
+=========================================================================
+V1. CELE DOUĂ REGULI DE ACTUALIZARE A CENTRELOR
+=========================================================================
+Fișier: fer_wen/wen_center_loss.py, importat de rooms_wen/train_rooms_wen.py
+
+Modul "wen" implementează:
+    numarator = n_j * c_j - suma_trasaturilor_clasei_j
+    delta_j   = numarator / (1 + n_j)
+    c_j      -= alpha * delta_j
+
+Modul "gradient": centrele sunt parametri obișnuiți, actualizați de un SGD pe
+obiectivul combinat CE + lambda * CenterLoss, unde
+    CenterLoss = 0.5 * mean_i ||x_i - c_{y_i}||^2
+
+Verifică:
+ a) Este modul "wen" identic cu ecuația (4) și Algoritmul 1 din articol? Atenție
+    la semn, la direcția deplasării și la faptul că n_j este numărul de exemple
+    din clasa j în lotul CURENT.
+ b) În modul "wen", centrele trebuie să fie buffer, nu parametri, și
+    actualizarea trebuie făcută în afara grafului de autograd. Este respectat?
+ c) Ordinea în buclă: pasul optimizatorului pe rețea, apoi actualizarea
+    manuală a centrelor, folosind embeddingurile lotului deja consumat.
+    Este aceasta ordinea corectă față de articol, sau actualizarea ar trebui
+    făcută înaintea pasului pe rețea? Contează?
+ d) În modul "gradient", este corect ca lambda să intre în gradientul
+    centrului, iar deplasarea să fie normalizată de mărimea lotului B?
+    Aceasta este alegerea făcută în lucrare; vreau să știu dacă e o
+    implementare validă a Center Loss, nu dacă e cea din articol.
+
+Notă: ambele au fost deja verificate numeric de mine — Algoritmul 1 față de
+formula din articol calculată naiv, exemplu cu exemplu (eroare max 2,4e-07), și
+modul "gradient" față de implementarea comună din vit_s16_baseline/src/
+center_loss.py (diferență exact zero la loss, la gradientul pe trăsături și la
+gradientul pe centre). Verifică raționamentul, nu repeta testele numerice.
+
+=========================================================================
+V2. RAPORTUL DEPLASĂRILOR — PARTEA CEA MAI IMPORTANTĂ
+=========================================================================
+Susțin următorul lucru și vreau să îl confirmi sau să îl dărâmi.
+
+Deplasarea unui centru la un pas:
+    Algoritmul 1 : alpha / (1 + n_j)         înmulțit cu suma pe clasă
+    gradient     : eta_c * lambda / B        înmulțit cu aceeași sumă
+    raport       : alpha * B / (eta_c * lambda * (1 + n_j))
+
+Cu alpha = eta_c = 0.5 și lambda = 0.0005:
+  - pe FER2013 (dezechilibrat, C=7, B=64): raportul VARIAZĂ pe clase, de la
+    ~63.000 pentru "disgust" (n_j ≈ 1 într-un lot) la ~7.100 pentru "happy"
+    (n_j ≈ 17). Variația aceea între clase este diferența de REGULĂ.
+  - pe camere (echilibrat, 3.200 pe clasă, C=6, B=64): n_j ≈ 10,67 pentru toate
+    clasele, deci raportul este ACELAȘI număr peste tot, ~10.971.
+
+Concluzia mea: pe date echilibrate cele două reguli nu mai diferă prin
+normalizarea per clasă, ci doar printr-un factor uniform pe rata de deplasare a
+centrelor. Deci un rezultat obținut aici este dovadă despre cele două reguli
+așa cum sunt specificate, dar NU este dovadă despre normalizarea per clasă.
+
+Întrebări:
+ a) Este derivarea raportului corectă? Verifică factorul 0.5 din definiția
+    loss-ului, dacă media pe lot introduce un 1/B suplimentar, și dacă
+    momentum-ul sau weight decay-ul din SGD-ul centrelor schimbă concluzia
+    (SGD-ul e construit fără momentum explicit — verifică valorile implicite).
+ b) Este corectă afirmația că pe date echilibrate diferența devine un factor
+    uniform? Sau n_j fluctuează suficient de la lot la lot încât să conteze?
+    n_j este binomial, nu fix — cu B=64 și 6 clase, media 10,67 și abaterea
+    standard aproximativ 3. Contează această variație?
+ c) Dat fiind un raport de ~11.000×, este rezonabil să ne așteptăm ca brațul
+    "wen" să fie instabil sau să divergă? Ce ar trebui urmărit în jurnal ca să
+    prindem asta devreme, în loc să descoperim după 6 ore?
+ d) Formula e implementată în rooms_wen/train_rooms_wen.py, funcția
+    displacement_ratio, și scrisă în jurnalul fiecărei rulări. Verific-o.
+
+=========================================================================
+V3. BUCLA DE ANTRENARE
+=========================================================================
+Fișier: rooms_wen/train_rooms_wen.py
+
+ a) Interacțiunea cu precizia mixtă. GradScaler sare tăcut peste un pas al
+    optimizatorului dacă gradienții nu sunt finiți, deci modul "gradient" își
+    revine singur. Actualizarea manuală din modul "wen" nu are protecția asta;
+    există o gardă care ridică FloatingPointError dacă embeddingurile nu sunt
+    finite. Este suficientă garda? Ar trebui verificate și centrele după
+    actualizare?
+ b) Actualizarea manuală folosește `feats`, care sub autocast este float16.
+    Metoda face `.detach().to(self.centers.dtype)`. Este suficient pentru a
+    evita pierderea de precizie la un raport de deplasare de 11.000×?
+ c) Scheduler: warmup liniar 5 epoci, apoi cosinus, un pas pe epocă. Rata
+    este citită ÎNAINTE de scheduler.step(), deci se jurnalizează rata folosită
+    efectiv în epoca respectivă. Confirmă că e corect.
+ d) Selecția checkpoint-ului se face pe acuratețea de validare, cu `>` strict.
+    Testul nu este atins în timpul antrenării. Verifică în cod că e adevărat.
+ e) Seed-ul: sunt însămânțate random, numpy, torch, cuda, PYTHONHASHSEED, iar
+    cudnn e pus determinist cu benchmark oprit. Ce lipsește? DataLoader-ul nu
+    are worker_init_fn și nici generator dedicat — contează la num_workers=2,
+    și dacă da, în ce fel afectează comparația între seed-uri?
+
+=========================================================================
+V4. CE POATE FI CONCLUZIONAT DIN NOUĂ RULĂRI
+=========================================================================
+Trei seed-uri per braț, 600 de imagini de test, un singur set de test.
+
+ a) Cu trei seed-uri, ce statistică se raportează corect? Medie ± abatere
+    standard a diferențelor pereche pe seed? Un interval t cu 2 grade de
+    libertate? Sau doar valorile individuale, fără test?
+ b) Comparațiile sunt pereche pe două niveluri deodată: aceleași imagini de
+    test ȘI aceleași seed-uri. Cum se combină corect? McNemar pe imagini
+    ignoră structura pe seed-uri; media pe seed-uri ignoră care imagini.
+ c) Câte comparații formează familia aici, și ce corecție se aplică?
+ d) Rezultatul anterior, cu un singur seed, a fost: baseline 56,33%, iar Center
+    Loss sub baseline la toate cele trei valori ale lui lambda testate
+    (55,00 / 54,00 / 53,00), nimic semnificativ după corecție. Dacă cele trei
+    seed-uri confirmă tiparul, ce am voie să afirm? Dacă îl contrazic?
+
+=========================================================================
+FORMAT
+=========================================================================
+Pentru fiecare secțiune: verdict (corect / greșit / nedovedit) și dovada. Unde
+găsești o eroare, dă corecția concretă — formulă sau patch — nu o observație
+generală. La final, spune clar: pot da drumul la cele 18 ore, sau trebuie
+schimbat ceva întâi?
+
+Nu inventa numere. Dacă îți lipsește un fișier, spune exact care.
