@@ -117,6 +117,47 @@ def read_macro_f1(run_dir: str) -> Optional[float]:
     return float(m.group(1)) if m else None
 
 
+def run_matches(run_dir: str, base: Dict[str, Any],
+                variant: Dict[str, Any]) -> "tuple[bool, str]":
+    """Is an existing run directory safe to reuse for this variant?
+
+    A finished-looking directory is not enough. It may have been produced by a
+    different configuration -- a different dataset, coefficient or seed -- and
+    reusing it would report old numbers under the current settings with no error
+    at all. This compares the settings that would change the result, and
+    requires the evaluation to have actually completed.
+    """
+    cfg_path = os.path.join(run_dir, "logs", "config_used.yaml")
+    if not os.path.isfile(cfg_path):
+        return False, "it has no logs/config_used.yaml, so its settings are unknown"
+    with open(cfg_path, encoding="utf-8") as fh:
+        old = yaml.safe_load(fh)
+
+    checks = [
+        ("training.use_center_loss", bool(old["training"].get("use_center_loss")),
+         bool(variant["use_center_loss"])),
+        ("training.center_loss_weight", old["training"].get("center_loss_weight"),
+         base["training"]["center_loss_weight"]),
+        ("training.epochs", old["training"].get("epochs"), base["training"]["epochs"]),
+        ("training.batch_size", old["training"].get("batch_size"),
+         base["training"]["batch_size"]),
+        ("training.seed", old["training"].get("seed"), base["training"]["seed"]),
+        ("model.image_size", old["model"].get("image_size"), base["model"]["image_size"]),
+        ("data.train_dir", old["data"].get("train_dir"), base["data"]["train_dir"]),
+        ("data.eval_dir", old["data"].get("eval_dir"), base["data"]["eval_dir"]),
+    ]
+    for key, was, now in checks:
+        if was != now:
+            return False, f"{key} was {was!r} in that run but is {now!r} now"
+
+    ev = newest_eval(run_dir)
+    required = ["metrics.txt", "classification_report.txt", "confusion_matrix.csv"]
+    missing = [f for f in required if not os.path.isfile(os.path.join(ev, f))]
+    if missing:
+        return False, f"its evaluation is incomplete, missing {missing}"
+    return True, ""
+
+
 def build_variant_config(base: Dict[str, Any], variant: Dict[str, Any]) -> Path:
     cfg = copy.deepcopy(base)
     cfg["run_name"] = variant["run_name"]
@@ -189,6 +230,12 @@ def main() -> None:
         name = v["run_name"]
         existing = find_run_dir(runs_dir, name)
         if existing and newest_eval(existing) and not args.force:
+            reusable, why = run_matches(existing, base, v)
+            if not reusable:
+                print(f"\n[stop] {name}: a finished run exists at {existing},")
+                print(f"       but it cannot be reused: {why}")
+                print("       Re-run with --force to overwrite it, or move it aside.")
+                return
             print(f"\n[skip] {name}: already evaluated at {existing}")
             records.append({
                 "run_name": name, "description": v["description"],
@@ -237,6 +284,13 @@ def main() -> None:
         append_summary(summary_path, record)
         records.append(record)
 
+    if not any(r.get("minutes") not in (None, "") for r in records):
+        print("\n" + "!" * 78)
+        print("NOTHING WAS TRAINED: every variant was skipped as already complete.")
+        print("The table below therefore reports earlier runs, not this invocation.")
+        print("If you expected training to happen, check that the repository in this")
+        print("runtime is up to date and that the run names match the current code.")
+        print("!" * 78)
     print_summary(records)
     print(f"\nSummary appended to {summary_path}")
 
