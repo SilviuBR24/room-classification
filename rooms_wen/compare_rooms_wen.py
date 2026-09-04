@@ -28,6 +28,7 @@ import math
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -36,6 +37,8 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 HERE = Path(__file__).resolve().parent
+# Generated per-variant configs go here, never into the repository.
+TEMP_CONFIG_DIR = tempfile.mkdtemp(prefix="rooms_wen_cfg_")
 SUMMARY_FILENAME = "rooms_wen_comparison_results.csv"
 
 SEEDS: List[int] = [42, 43, 44]
@@ -55,9 +58,17 @@ SUMMARY_FIELDS = ["run_name", "center_mode", "seed", "description",
 
 
 def variants() -> List[Dict[str, Any]]:
+    """The nine arms, ordered seed by seed rather than mode by mode.
+
+    Running all three seeds of one mode before starting the next would put each
+    mode in its own stretch of wall-clock time, and these nine runs will span
+    several Colab sessions on whatever GPU is allocated. A change of machine
+    would then line up with a change of mode, and the two could not be told
+    apart. Interleaving spreads any such change across all three modes instead.
+    """
     out = []
-    for m in MODES:
-        for s in SEEDS:
+    for s in SEEDS:
+        for m in MODES:
             out.append({**m, "seed": s,
                         "run_name": f"rooms_wen_{m['center_mode']}_s{s}"})
     return out
@@ -108,8 +119,18 @@ def config_differences(old: Dict[str, Any], new: Dict[str, Any],
     return out
 
 
-def run_matches(run_dir: str, base: Dict[str, Any],
-                variant: Dict[str, Any]) -> "tuple[bool, str]":
+def current_commit() -> Optional[str]:
+    """The commit this code is running from, or None outside a checkout."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(HERE),
+                           capture_output=True, text=True, timeout=30)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def run_matches(run_dir: str, base: Dict[str, Any], variant: Dict[str, Any],
+                expected_commit: Optional[str] = None) -> "tuple[bool, str]":
     """Is an existing run directory safe to reuse for this variant?
 
     Three things have to hold, and a finished-looking directory shows none of
@@ -152,6 +173,10 @@ def run_matches(run_dir: str, base: Dict[str, Any],
         prov = json.load(fh)
     if not prov.get("git_commit"):
         return False, "its provenance records no commit"
+    want_commit = expected_commit if expected_commit is not None else current_commit()
+    if want_commit and prov["git_commit"] != want_commit:
+        return False, (f"it was produced from commit {prov['git_commit'][:8]}, "
+                       f"but this code is {want_commit[:8]}")
     if prov.get("git_dirty"):
         return False, (f"it was produced from a dirty working tree at "
                        f"{prov['git_commit'][:8]}, so its code is not identified")
@@ -241,7 +266,11 @@ def variant_config(base: Dict[str, Any], v: Dict[str, Any],
 def build_variant_config(base: Dict[str, Any], v: Dict[str, Any],
                          workers: Optional[int]) -> Path:
     cfg = variant_config(base, v, workers)
-    out = HERE / f"config_used_{v['run_name']}.yaml"
+    # Written outside the repository. Inside it, this file made the working
+    # tree dirty, the trainer recorded git_dirty=True in its provenance, and
+    # the reuse check then rejected the run's own output on the next session --
+    # which is precisely the resume path these nine runs depend on.
+    out = Path(TEMP_CONFIG_DIR) / f"config_used_{v['run_name']}.yaml"
     with open(out, "w", encoding="utf-8") as fh:
         yaml.safe_dump(cfg, fh, sort_keys=False, allow_unicode=True)
     return out
@@ -292,14 +321,30 @@ def print_summary(records: List[Dict[str, Any]]) -> None:
               "difference between arms against it.")
 
 
+def find_valid_run_dir(runs_dir: str, base: Dict[str, Any],
+                       v: Dict[str, Any]) -> Optional[str]:
+    """The newest run for this variant that is actually usable.
+
+    Taking the newest directory and stopping there hid a complete run behind an
+    incomplete one -- an arm interrupted halfway would mask the finished arm
+    before it and be retrained for nothing.
+    """
+    for d in sorted(glob.glob(os.path.join(runs_dir, f"*_{v['run_name']}")),
+                    reverse=True):
+        if not os.path.isdir(d) or not os.path.basename(d).endswith(
+                "_" + v["run_name"]):
+            continue
+        ok, _ = run_matches(d, base, v)
+        if ok:
+            return d
+    return None
+
+
 def record_for(runs_dir: str, base: Dict[str, Any], v: Dict[str, Any],
                minutes: Any = "") -> Optional[Dict[str, Any]]:
     """Read back a finished run as a summary row, or None if it is not usable."""
-    run_dir = find_run_dir(runs_dir, v["run_name"])
-    if run_dir is None or newest_eval(run_dir) is None:
-        return None
-    ok, _ = run_matches(run_dir, base, v)
-    if not ok:
+    run_dir = find_valid_run_dir(runs_dir, base, v)
+    if run_dir is None:
         return None
     ev = newest_eval(run_dir)
     return {
@@ -372,6 +417,9 @@ def main() -> None:
         existing = find_run_dir(runs_dir, name)
         if existing and newest_eval(existing) and not args.force:
             reusable, why = run_matches(existing, base, v)
+            if not reusable and find_valid_run_dir(runs_dir, base, v):
+                print(f"[skip] {name}: an older valid run exists")
+                continue
             if not reusable:
                 print()
                 print(f"[stop] {name}: a finished run exists at {existing},")

@@ -22,10 +22,11 @@ defined, because the question is which of the two, as used, is better.
 
 The ratio of the two displacements is `α·B / (η_c·λ·(1 + n_j))`.
 
-On FER2013, evaluated at each class's expected count in a batch of 64 drawn
-from 28,709 training images, that ratio is about **64,910** for the rare
-`disgust` class against about **7,492** for the common `happy` class — a
-nine-fold spread driven by class frequency. The FER result is *consistent with*
+On FER2013 the ratio varies with class frequency. The experiment ran on the
+deduplicated split (27,182 training images, 366 `disgust` against 7,035
+`happy`), where at each class's expected count in a batch of 64 it is about
+**68,753** for `disgust` against about **7,288** for `happy` — a nine-fold
+spread. On the original split the same figures are 64,910 and 7,492. The FER result is *consistent with*
 that mechanism; that experiment did not isolate it, so it is not evidence that
 the per-class normalisation is what produced the effect.
 

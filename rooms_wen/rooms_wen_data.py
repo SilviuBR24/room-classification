@@ -2,9 +2,12 @@
 
 The augmentations reproduce the shared pipeline exactly -- RandomResizedCrop
 with scale (0.7, 1.0) and ratio (0.75, 1.3333), then a horizontal flip -- so
-that the baseline arm of this experiment can reproduce the run already obtained
-by the shared loop. Anything different here would make that control fail for a
-reason that has nothing to do with the centre update.
+the baseline arm is comparable with the run already obtained by the shared loop.
+It is not a reproduction of it: the train loader here takes a dedicated
+generator, which the shared loop does not, so the image order differs. That is
+deliberate -- it is what makes the three arms of this comparison see the same
+images -- and it means the baseline arm is a consistency check rather than a
+deterministic replay.
 
 The class order is taken from the config rather than from the directory
 listing. Alphabetical order happens to coincide for these six names, but

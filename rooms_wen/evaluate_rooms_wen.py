@@ -185,7 +185,9 @@ def main() -> None:
         ref = 1.0 / np.sqrt(C.shape[1])
         print(f"\nCentre alignment ({mode}), random reference {ref:.3f}:")
         for r in rows:
-            print(f"   {r['class']:<15}{r['cosine_centre_vs_centroid']:.3f}")
+            v = r["cosine_centre_vs_centroid"]
+            shown = f"{v:.3f}" if isinstance(v, float) else "undefined"
+            print(f"   {r['class']:<15}{shown}")
 
     print(f"\n{mode} | seed {seed} | test accuracy {overall:.4f}")
     print(f"written to {out_dir}")

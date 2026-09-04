@@ -18,6 +18,7 @@ import io
 import json
 import math
 import os
+import pathlib
 import subprocess
 import sys
 import tempfile
@@ -308,7 +309,9 @@ def main() -> None:
     for v in all_v:
         make_run(v, CR.variant_config(base, v, workers=2), best_val=0.55)
 
-    records = [CR.record_for(str(fake), base, v) for v in all_v]
+    import unittest.mock as _m
+    with _m.patch.object(CR, "current_commit", lambda: "a" * 40):
+        records = [CR.record_for(str(fake), base, v) for v in all_v]
     ok_rows = [r for r in records if r is not None]
     check("toate cele 9 brate sunt regasite dupa o reluare", len(ok_rows) == 9,
           f"{len(ok_rows)}/9")
@@ -345,7 +348,7 @@ def main() -> None:
         # passed workers=2 and so could never fail on num_workers.
         run = make_run({**v0, "run_name": "changed", "seed": 1},
                        CR.variant_config(bad, v0, workers=None), 0.5)
-        ok, why = CR.run_matches(str(run), base, v0)
+        ok, why = CR.run_matches(str(run), base, v0, expected_commit="a" * 40)
         check(f"respinge o rulare cu {field} schimbat", not ok, why[:100])
         import shutil as _s
         _s.rmtree(run)
@@ -353,7 +356,7 @@ def main() -> None:
     # o rulare produsa dintr-un arbore murdar nu poate fi identificata
     run = make_run({**v0, "run_name": "dirtyrun", "seed": 2},
                    CR.variant_config(base, v0, workers=2), 0.5, dirty=True)
-    ok, why = CR.run_matches(str(run), base, v0)
+    ok, why = CR.run_matches(str(run), base, v0, expected_commit="a" * 40)
     check("respinge o rulare produsa dintr-un arbore murdar", not ok, why[:90])
 
     # coduri diferite intre brate trebuie semnalate
@@ -364,7 +367,53 @@ def main() -> None:
           comp[0][:80] if comp else "")
 
     # ---------------------------------------------------------------
-    head(10, "Formulele Center Loss nu au fost modificate")
+    head(10, "Configuratia temporara nu murdareste repository-ul")
+    tmp_cfg = CR.build_variant_config(base, all_v[0], workers=2)
+    inside = str(HERE) in str(pathlib.Path(tmp_cfg).resolve())
+    check("configuratia generata e scrisa in afara repo-ului", not inside,
+          str(tmp_cfg))
+    dirty = subprocess.run(["git", "status", "--porcelain"], cwd=str(HERE),
+                           capture_output=True, text=True).stdout
+    stray = [l for l in dirty.splitlines() if "config_used_" in l]
+    check("git status nu vede fisiere config_used_*", not stray, str(stray[:2]))
+
+    head(11, "AMP cu DOI optimizatori: pasii raman simetrici")
+    if not torch.cuda.is_available():
+        check("simetrie cu doi optimizatori", None, "fara GPU aici")
+    else:
+        dev = "cuda"
+        def two_opt(make_inf):
+            net = torch.nn.Linear(8, 6).to(dev)
+            cen = torch.nn.Parameter(torch.randn(6, 6, device=dev))
+            om = torch.optim.SGD(net.parameters(), lr=0.1)
+            oc = torch.optim.SGD([cen], lr=0.5)
+            sc = torch.amp.GradScaler(dev, enabled=True)
+            w0, c0 = net.weight.detach().clone(), cen.detach().clone()
+            om.zero_grad(set_to_none=True); oc.zero_grad(set_to_none=True)
+            with torch.autocast(dev, dtype=torch.float16, enabled=True):
+                loss = (net(torch.randn(16, 8, device=dev)).pow(2).mean()
+                        + 0.0005 * cen.pow(2).mean())
+            sc.scale(loss).backward()
+            if make_inf:
+                net.weight.grad[0, 0] = float("inf")
+            sc.unscale_(om); sc.unscale_(oc)
+            finite = all(torch.isfinite(q.grad).all()
+                         for q in net.parameters() if q.grad is not None)
+            if not finite and cen.grad is not None:
+                cen.grad.zero_()
+            s0 = sc.get_scale()
+            sc.step(om); sc.step(oc); sc.update()
+            return (not torch.equal(w0, net.weight.detach()),
+                    not torch.equal(c0, cen.detach()),
+                    sc.get_scale() < s0)
+        mm, mc, dropped = two_opt(False)
+        check("pas normal: ambele se misca", mm and mc)
+        mm, mc, dropped = two_opt(True)
+        check("la overflow nu se misca niciuna", (not mm) and (not mc),
+              f"model={mm} centre={mc}")
+        check("scalerul isi coboara totusi scala", dropped)
+
+    head(12, "Formulele Center Loss nu au fost modificate")
     def sh(*a):
         r = subprocess.run(a, cwd=str(ROOT), capture_output=True, text=True)
         return r.stdout if r.returncode == 0 else ""
@@ -374,7 +423,7 @@ def main() -> None:
           diff.strip() == "", diff[:200] if diff.strip() else "")
 
     # ---------------------------------------------------------------
-    head(11, "Notebook-ul: fixare pe commit si fara jeton in remote")
+    head(13, "Notebook-ul: fixare pe commit si fara jeton in remote")
     nb = json.loads((HERE / "run_rooms_wen_colab.ipynb").read_text(encoding="utf-8"))
     nbtxt = "".join("".join(c["source"]) for c in nb["cells"])
     check("fixeaza un commit explicit", "PINNED_COMMIT" in nbtxt)

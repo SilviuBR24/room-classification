@@ -335,28 +335,46 @@ def main() -> None:
                     loss = ce + lam * center_raw
 
             scaler.scale(loss).backward()
+
+            # Unscale both sets of gradients before deciding anything, so the
+            # finiteness test below sees real values rather than scaled ones.
+            scaler.unscale_(optimizer)
+            if optimizer_center is not None:
+                scaler.unscale_(optimizer_center)
             if grad_clip:
-                scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), float(grad_clip))
+
+            # GradScaler decides per optimiser, not once per iteration. With the
+            # centres held in a second optimiser, the model's step can be skipped
+            # for overflowing gradients while the centres, whose gradients are
+            # finite, step anyway -- measured on this build: the network did not
+            # move and the centres did. That asymmetry would make the two arms
+            # differ by more than their update rule, so the centre step is
+            # neutralised by hand whenever the model's step will be skipped.
+            #
+            # The gradients are zeroed rather than the step being skipped
+            # outright, because the scaler only lowers its scale when a step it
+            # was asked to take found the overflow. Skipping both steps and
+            # calling update() leaves the scale where it was -- measured: it
+            # stayed at 65536 -- and every following batch would overflow again.
+            model_finite = all(
+                torch.isfinite(p.grad).all()
+                for p in model.parameters() if p.grad is not None)
+            if not model_finite:
+                skipped_steps += 1
+                if optimizer_center is not None:
+                    for p in center_loss.parameters():
+                        if p.grad is not None:
+                            p.grad.zero_()
 
             centres_before = (center_loss.centers.detach().clone()
                               if center_loss is not None else None)
-            scale_before = scaler.get_scale()
             scaler.step(optimizer)
             if optimizer_center is not None:
-                # As in the shared loop: the scaler unscales the centre
-                # gradients too, and those gradients carry lambda.
                 scaler.step(optimizer_center)
             scaler.update()
 
-            # Did the optimiser actually move? GradScaler skips a step whose
-            # gradients are not finite and then reduces the scale, so a scale
-            # that dropped means the step was skipped. Verified against this
-            # PyTorch build: on a skip the scale went 65536 -> 32768 and the
-            # parameters did not change, while a normal step left it unchanged.
-            step_taken = (not use_amp) or scaler.get_scale() >= scale_before
-            if not step_taken:
-                skipped_steps += 1
+            step_taken = model_finite
 
             if mode == "wen":
                 # Algorithm 1, applied after the model step, in float32 and
