@@ -326,7 +326,10 @@ def main() -> None:
     for field, path in [("weight_decay", ("training", "weight_decay")),
                         ("dropout", ("model", "dropout")),
                         ("val_dir", ("data", "val_dir")),
-                        ("num_classes", ("model", "num_classes"))]:
+                        ("num_classes", ("model", "num_classes")),
+                        ("num_workers", ("training", "num_workers")),
+                        ("center_loss_lr", ("training", "center_loss_lr")),
+                        ("image_size", ("model", "image_size"))]:
         import copy as _c
         bad = _c.deepcopy(base)
         node = bad
@@ -337,8 +340,11 @@ def main() -> None:
         if d.exists():
             import shutil as _s
             _s.rmtree(d)
+        # workers=None so the deliberately broken value survives instead of
+        # being overwritten by the argument -- the first version of this test
+        # passed workers=2 and so could never fail on num_workers.
         run = make_run({**v0, "run_name": "changed", "seed": 1},
-                       CR.variant_config(bad, v0, workers=2), 0.5)
+                       CR.variant_config(bad, v0, workers=None), 0.5)
         ok, why = CR.run_matches(str(run), base, v0)
         check(f"respinge o rulare cu {field} schimbat", not ok, why[:100])
         import shutil as _s

@@ -110,7 +110,10 @@ training:
   learning_rate: 0.0003
   weight_decay: 0.05
   seed: 42                        # overridden per variant by the runner
-  num_workers: 2                  # the runner raises this on Colab
+  # Compared when a finished run is considered for reuse: the worker seeds
+  # come from the loader's generator, so a different count means a
+  # different augmentation stream. Set it here, not on the command line.
+  num_workers: 2
   use_amp: true
   scheduler: "cosine"
   warmup_epochs: 5

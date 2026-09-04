@@ -84,12 +84,6 @@ def read_text(path: str) -> str:
         return ""
 
 
-# Fields that differ between runs without changing the numbers. Everything
-# else in the configuration is compared, so nothing can be forgotten by
-# omission the way a hand-maintained list of checks can be.
-IGNORED_CONFIG_KEYS = {("run_name",), ("paths", "output_root"), ("paths",)}
-
-
 def canonical(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """The configuration reduced to what actually determines the result."""
     import copy
@@ -140,11 +134,13 @@ def run_matches(run_dir: str, base: Dict[str, Any],
     with open(cfg_path, encoding="utf-8") as fh:
         old_cfg = yaml.safe_load(fh)
 
+    # num_workers is compared like everything else. It is not cosmetic: the
+    # worker seeds are derived from the loader's generator, so a different
+    # number of workers means a different augmentation stream, and two arms
+    # trained with different worker counts are not the paired comparison they
+    # would appear to be.
     want = variant_config(base, variant, workers=None)
-    # num_workers is set per invocation, so compare the saved value against the
-    # saved value of the other reused runs rather than against the base file.
     diffs = config_differences(canonical(old_cfg), canonical(want))
-    diffs = [d for d in diffs if not d.startswith("training.num_workers")]
     if diffs:
         return False, "the configuration differs -- " + "; ".join(diffs[:3])
 
