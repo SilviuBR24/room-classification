@@ -1,0 +1,9 @@
+key,dataset,centre_update,n_eval,test_acc,se_acc,macro_f1,intra,inter,inter_intra,silhouette,davies_bouldin,run_dir
+orig_ce,original split (with duplicates),none,3589,0.6840,0.0078,0.6755,6.8439,7.5322,1.1006,0.1100,2.5351,2026-09-02_19-52_fer_crossentropy
+orig_cl,original split (with duplicates),gradient,3589,0.6807,0.0078,0.682,2.9946,3.9302,1.3124,0.1548,2.2180,2026-09-02_20-25_fer_crossentropy_centerloss
+clean_ce,deduplicated split,none,3397,0.6571,0.0081,0.634,6.9380,7.1240,1.0268,0.0920,2.8325,2026-09-03_20-23_fer_clean_crossentropy
+clean_cl,deduplicated split,gradient,3397,0.6576,0.0081,0.64,3.1613,3.6370,1.1505,0.1312,2.4303,2026-09-03_20-56_fer_clean_crossentropy_centerloss
+orig_grad,original split (with duplicates),gradient,3589,0.6840,0.0078,0.6791,3.0051,3.8731,1.2889,0.1540,2.1433,2026-09-03_17-11_fer_wen_gradient
+orig_alg1,original split (with duplicates),algorithm1,3589,0.6743,0.0078,0.6688,4.3474,4.9500,1.1386,0.1263,2.5156,2026-09-03_17-46_fer_wen_algorithm1
+clean_grad,deduplicated split,gradient,3397,0.6482,0.0082,0.6088,3.1018,3.5735,1.1521,0.1251,2.5375,2026-09-04_05-23_fer_wen_clean_gradient
+clean_alg1,deduplicated split,algorithm1,3397,0.6506,0.0082,0.6222,4.6048,4.7652,1.0348,0.1062,2.7499,2026-09-04_05-55_fer_wen_clean_algorithm1
