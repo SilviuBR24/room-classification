@@ -410,6 +410,80 @@ def print_contrasts(recs: List[Dict]) -> None:
              "F. replication check: the same algorithm, two separate codebases")
 
 
+def predictions_correct(eval_dir: str) -> tuple[List[str], List[bool]]:
+    """Per-image correctness, plus the true labels used to check alignment.
+
+    The two training loops spell the columns differently -- `filepath/true_label/
+    pred_label` against `path/true/pred` -- so both spellings are accepted.
+    """
+    path = os.path.join(eval_dir, "predictions.csv")
+    with open(path, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+
+    def pick(*names: str) -> str:
+        for n in names:
+            if n in rows[0]:
+                return n
+        raise SystemExit(f"{path}: none of {names} among {list(rows[0])}")
+
+    t = pick("true_label", "true", "target", "label")
+    p = pick("pred_label", "pred", "prediction", "predicted")
+    truth = [r[t].strip() for r in rows]
+    return truth, [r[t].strip() == r[p].strip() for r in rows]
+
+
+def mcnemar_exact(a_ok: List[bool], b_ok: List[bool]) -> tuple[int, int, float]:
+    """Two-sided exact McNemar test on paired predictions.
+
+    The two runs are scored on the same images, so their errors are correlated
+    and the two-independent-samples standard error understates the pairing.
+    Only the images the two runs disagree on carry information; under the null
+    each of those is a fair coin, so the exact binomial tail is the p-value.
+    The exact form is used rather than the chi-square approximation because it
+    is cheap here and needs no continuity correction.
+    """
+    b = sum(1 for x, y in zip(a_ok, b_ok) if x and not y)
+    c = sum(1 for x, y in zip(a_ok, b_ok) if y and not x)
+    n = b + c
+    if n == 0:
+        return b, c, 1.0
+    tail = sum(math.comb(n, i) for i in range(min(b, c) + 1)) / 2 ** n
+    return b, c, min(1.0, 2 * tail)
+
+
+def print_paired_tests(recs: List[Dict]) -> None:
+    by = {r["run"].key: r for r in recs}
+    print()
+    print("=" * 78)
+    print("PAIRED SIGNIFICANCE (exact McNemar, same images scored twice)")
+    print("=" * 78)
+
+    pairs = [
+        ("orig_ce", "orig_cl", "A. Center Loss, original split"),
+        ("clean_ce", "clean_cl", "B. Center Loss, deduplicated split"),
+        ("orig_grad", "orig_alg1", "C. gradient vs Algorithm 1, original split"),
+        ("clean_grad", "clean_alg1", "D. gradient vs Algorithm 1, deduplicated"),
+        ("clean_cl", "clean_grad", "F. replication, two separate codebases"),
+    ]
+    for ka, kb, what in pairs:
+        ta, oka = predictions_correct(by[ka]["run"].eval_dir)
+        tb, okb = predictions_correct(by[kb]["run"].eval_dir)
+        if ta != tb:
+            raise SystemExit(
+                f"{what}: the two prediction files are not in the same order, "
+                "so they cannot be paired")
+        b, c, p = mcnemar_exact(oka, okb)
+        verdict = "REAL DIFFERENCE" if p < 0.05 else "not distinguishable from noise"
+        print(f"\n  {what}")
+        print(f"    disagreements {b + c} of {len(ta)}  "
+              f"({b} only the first, {c} only the second)")
+        print(f"    exact McNemar p = {p:.3f}  ->  {verdict}")
+
+    print("\n  E. deduplication cannot be tested this way: the two runs are")
+    print("     scored on different test sets (3589 vs 3397 images), so the")
+    print("     predictions are not paired and no McNemar test applies.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true",
@@ -419,6 +493,7 @@ def main() -> None:
 
     recs = collect()
     print_contrasts(recs)
+    print_paired_tests(recs)
     if args.check:
         print("\n--check: no files were written.")
         return
