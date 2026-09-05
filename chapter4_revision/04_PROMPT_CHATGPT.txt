@@ -1,0 +1,136 @@
+Am două sarcini pentru tine, independente una de alta. Fă-le pe amândouă, în
+ordinea de mai jos.
+
+FIȘIERE ATAȘATE
+  Lupu_Silviu-George_Anexe_Cod.tex   — anexele de cod, compilabile singure
+  02_CONCLUZII.tex                    — secțiunea de concluzii, de rescris
+
+CONTEXT
+Disertație UPB/ETTI, program AWC. Titlu: "Room Type Recognition Using Clustering
+Cost Functions for the Embedding Space". Lucrarea are 4 capitole, 73 de pagini,
+și se predă în două zile. Prezentarea e pe 9-10 septembrie.
+
+=========================================================================
+SARCINA 1 — VERIFICĂ ANEXELE FAȚĂ DE REGULAMENT
+=========================================================================
+Regulamentul ETTI de absolvire, capitolul 3, spune următoarele. Citatele sunt
+exacte; verifică față de ele, nu din memorie.
+
+Despre anexe:
+  "Anexe opționale – acestea se numerotează în ordine crescătoare, începînd cu
+   Anexa 1 (fără legătură cu Anexele din acest Regulament). Fiecare anexă se va
+   menționa cel puțin o dată în textul lucrării, ca referință. Tipic, în anexe se
+   includ scheme electrice complete, desene de cablaj imprimat, codul sursă scris
+   de absolvent, fotografii ale machetei, anumite grafice (dacă sunt prea
+   numeroase pentru a fi listate direct în cadrul capitolelor), diagrama Gantt a
+   proiectului (opțională) etc. Nu se vor include în anexe materiale care nu
+   reprezintă contribuția absolventului (de exemplu: cod sursă a unor biblioteci
+   deja existente, foi de catalog a unor componente etc) decît în cazuri bine
+   justificate și cu menționarea explicită a faptului că aceste materiale sînt
+   pre-existente."
+
+Despre fontul pentru cod:
+  "Pentru listarea codului sursă se va utiliza un font cu dimensiune fixă
+   (exemplu: Courier New etc), cu dimensiunea corpului de 8 .. 12 puncte. Este
+   recomandabilă reducerea corpului în anexe. Listarea codului sursă se poate
+   face pe 2 coloane."
+
+Alte reguli relevante:
+  "Spacing between lines – the text shall have single spacing, or at most 1.2
+   lines spacing."
+  "Page margins: left 2 cm, right 2 cm, top 2 cm, bottom 2 cm."
+  "numerotarea paginilor se face consecutiv [...] pînă la ultima pagină a
+   proiectului, inclusiv anexele"
+  "the number of pages (excluding annexes) should be between 60 to 100 pages
+   (for the dissertation thesis)"
+
+CE CONȚIN ANEXELE, în ordinea din fișier:
+   1  make_split.py            80 linii   împărțirea deterministă a datelor
+   2  dataset.py              190         încărcarea, ordinea fixă a claselor
+   3  vit.py                  307         ViT-S/16 implementat de la zero
+   4  center_loss.py           53         funcția de cost
+   5  trainer.py              369         antrenarea supervizată
+   6  pseudo_label.py         155         selecția pseudo-etichetelor
+   7  semi_trainer.py         220         auto-etichetarea în timpul antrenării
+   8  evaluate.py             248         acuratețe și matrici de confuzie
+   9  analyze_embeddings.py   254         măsurătorile de separabilitate
+  10  mnist_center_loss.py    279         validarea implementării pe MNIST
+  11  run_colab.ipynb         179         notebook-ul care a rulat experimentele
+  Total 2.334 linii.
+
+Formatul ales: o coloană, Courier 8pt, spațiere simplă. Motivul: la 8pt pe o
+coloană încap circa 100 de caractere pe linie și doar 4 linii din 2.334 se rup.
+Pe două coloane ar fi încăput 49 de caractere și s-ar fi rupt câteva sute.
+
+VERIFICĂ ȘI RĂSPUNDE PUNCTUAL:
+
+ V1. Numerotarea și structura respectă regulamentul?
+
+ V2. Formatul — font fix, 8pt, spațiere simplă, o coloană — e conform? Este
+     vreo regulă pe care am înțeles-o greșit?
+
+ V3. Conține vreuna dintre anexe cod care NU e contribuția absolventului?
+     Caută în listinguri: implementări copiate din biblioteci, fragmente
+     preluate din documentația unui framework, cod generat de unelte.
+     Importurile din biblioteci standard sunt normale și nu intră aici — mă
+     interesează corpul funcțiilor.
+
+ V4. Selecția e potrivită pentru cerințele oficiale ale temei? Ele sunt:
+     (1) antrenarea unei arhitecturi transformer pentru 6 clase de camere;
+     (2) adăugarea unei funcții center loss pentru separabilitate;
+     (3) un scenariu semi-supervizat cu etichetare în timp real;
+     (4) analiza cu acuratețe, matrici de confuzie și grafice de separabilitate.
+     Lipsește ceva ce ar trebui să fie acolo? E ceva de scos?
+
+ V5. Am lăsat deliberat afară: logger.py, checkpoint.py, utils.py (infrastructură)
+     și train.py, self_train.py, sweep_selflabel.py (învelișuri de linie de
+     comandă care doar citesc o configurație și apelează motoarele din anexe).
+     E o decizie bună sau ar trebui incluse?
+
+ V6. Fișierul compilează? Caută probleme de LaTeX: delimitatoare neînchise,
+     caractere care nu se pot reda în fontul de cod, comenzi lipsă din preambul.
+
+NOTĂ IMPORTANTĂ despre cerința "fiecare anexă menționată cel puțin o dată în
+text": nu o poți verifica din fișierul atașat, fiindcă el conține doar anexele.
+Propozițiile de referință există separat și urmează să fie inserate în corpul
+lucrării. Nu o raporta ca lipsă; spune doar că nu ai putut verifica.
+
+=========================================================================
+SARCINA 2 — REFORMULEAZĂ CONCLUZIILE
+=========================================================================
+Textul din 02_CONCLUZII.tex e corect ca fond dar vreau o formulare mai bună.
+Rescrie-l în engleză britanică, păstrând structura argumentului și lungimea
+aproximativă.
+
+REGULA CARE NU SE ÎNCALCĂ: NU ATINGE NICIUN NUMĂR.
+
+Nu adăuga cifre. Nu scoate cifre. Nu rotunji. Nu converti procente în fracții
+sau invers. Nu schimba un "fifty-four percent" în "54%" și nici invers. Fiecare
+valoare de mai jos trebuie să apară în textul tău exact de câte ori apare în
+al meu, cu exact aceleași zecimale:
+
+    81.83     56.33     98.39     50.16      0.36
+     4.76     20.76      8.203     3.814     7.907
+     3.389     0.964     0.888     0.036     0.026
+     1.465     1.606     1.17      3.50
+
+Plus, scrise în litere și de păstrat ca atare: "eleven million",
+"twenty-two million", "fifty-four percent", "fifty-seven percent",
+"six hundred", "nineteen thousand".
+
+Cifrele sunt măsurate și verificate. Dacă o frază ți se pare că sună prost din
+cauza unei cifre, schimbă fraza în jurul ei, nu cifra. Dacă crezi că o cifră e
+greșită, SPUNE-MI separat, nu o corecta.
+
+CE MAI TREBUIE PĂSTRAT
+ - Contracția distanței intra-clasă e o VERIFICARE a mecanismului, nu o
+   descoperire. Center Loss o optimizează direct. Rezultatul netrivial e ce se
+   întâmplă cu distanța inter-clasă și cu raportul.
+ - Interpretarea despre dependența de reprezentare e oferită ca interpretare
+   consistentă cu trei observații, NU ca demonstrație. Nu o întări.
+ - Rezultatul negativ pe acuratețe nu se prezintă ca eșec.
+ - Paragraful comentat de la final rămâne comentat, cu tot cu marcaje.
+ - Comenzile LaTeX rămân valide: \(...\), \unnumberedsection, \label.
+
+După ce termini, trece-mi într-o listă scurtă orice loc unde ai vrut să schimbi
+o cifră și te-ai abținut, ca să verific eu dacă aveai dreptate.
