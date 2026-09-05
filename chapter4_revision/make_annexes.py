@@ -45,6 +45,11 @@ ANNEXES = [
     ("vit_s16_baseline/src/semi_trainer.py", "semi\\_trainer.py",
      "The online self-training loop, which labels unannotated images during "
      "training."),
+    ("vit_s16_baseline/self_train.py", "self\\_train.py",
+     "The semi-supervised entry point: it folds the self-labelling settings "
+     "into the training schedule, builds the deterministic and augmented views "
+     "of the unlabelled pool so their indices stay aligned, and reduces the "
+     "labelled set for the few-label scenario."),
     ("vit_s16_baseline/evaluate.py", "evaluate.py",
      "Evaluation on the held-out test set: accuracy, per-class accuracy and "
      "confusion matrices."),
@@ -68,18 +73,32 @@ PREAMBLE = r"""% ===============================================================
 %  1. On its own. Upload this single file to Overleaf and compile. Nothing
 %     else is needed: every listing is embedded, not read from disk.
 %
-%  2. Merged into the thesis. Delete everything from \documentclass down to
-%     \begin{document}, and everything from \end{document} up. Paste what
-%     remains at the end of the thesis, after the bibliography. Move the
-%     \lstset block into the thesis preamble and add, next to the other
-%     package imports:
+%  2. Merged into the thesis. This has already been done for you: see
+%     Lupu_Silviu-George_COMPLET_cap1-4_cu_anexe.tex, a copy of the thesis
+%     with these annexes appended. To repeat it by hand:
 %
-%         \usepackage{listings}
-%         \usepackage{xcolor}
+%     a. Into the thesis preamble, copy the two package lines, the three
+%        \definecolor lines, and the whole \lstset block. The \lstset refers
+%        to those colours, so leaving them behind breaks the listings:
 %
-%     The thesis class may already number sections differently; if so, replace
-%     \section*{...} with whatever the class uses for an unnumbered heading,
-%     as the Conclusions section does.
+%            \usepackage{listings}
+%            \usepackage{xcolor}
+%            \definecolor{codecomment}{rgb}{0.35,0.40,0.45}
+%            \definecolor{codekeyword}{rgb}{0.10,0.25,0.55}
+%            \definecolor{codestring}{rgb}{0.55,0.20,0.15}
+%
+%     b. From this file, take the body only: everything between
+%        \tableofcontents \newpage and the final \end{document}. That is the
+%        twelve \section* headings with their listings. Paste it into the
+%        thesis after the bibliography and before its \end{document}.
+%
+%     c. Replace \section*{...} with the heading command the thesis class
+%        uses for unnumbered headings -- \unnumberedsection{...} in this one,
+%        as the Conclusions section does.
+%
+%     Do not add \label after those headings. An unnumbered heading steps no
+%     counter, so \ref would print whatever was counted last. Write the annex
+%     numbers literally in the text: Annex~1, Annex~2, and so on.
 %
 %  FORMATTING, against the ETTI regulation, Chapter 3 section 2
 %
@@ -94,7 +113,7 @@ PREAMBLE = r"""% ===============================================================
 %     wrapped several hundred lines.
 %
 %  EACH ANNEX MUST BE CITED AT LEAST ONCE IN THE BODY OF THE THESIS.
-%  See the companion file 03_REFERINTE_ANEXE.md for the eleven sentences and
+%  See the companion file 03_REFERINTE_ANEXE.md for the sentences and
 %  where each one goes. This is the requirement the bachelor thesis missed.
 % ==========================================================================
 
@@ -239,7 +258,6 @@ def main() -> None:
         parts.append(f"\\section*{{Annex {i} --- {caption}}}\n")
         parts.append(f"\\addcontentsline{{toc}}{{section}}"
                      f"{{Annex {i} --- {caption}}}\n")
-        parts.append(f"\\label{{annex:{path.stem.replace('_','')}}}\n\n")
         parts.append(blurb + "\n\n")
         parts.append("\\begin{lstlisting}\n")
         parts.append(code)
@@ -322,9 +340,7 @@ def build_merged(bodies: list[tuple[int, str, str, str]]) -> None:
            "% =========================================================\n\n"
            "\\begin{spacing}{1}\n\n"]
     for i, caption, blurb, code in bodies:
-        stem = caption.replace("\\", "").replace("_", "").replace(".", "")
         out.append(f"\\unnumberedsection{{Annex {i} --- {caption}}}\n")
-        out.append(f"\\label{{annex:{stem}}}\n\n")
         out.append(blurb + "\n\n")
         out.append("\\begin{lstlisting}\n")
         out.append(code)
