@@ -1,0 +1,120 @@
+% =========================================================================
+% CONCLUSIONS — ready to paste
+%
+% The thesis file currently has, near line 2486:
+%
+%     \unnumberedsection{Conclusions}
+%     \label{chap:conclusions}
+%
+% followed immediately by the bibliography. The regulation lists project
+% conclusions as a mandatory element (item j), so this section cannot be left
+% empty. Paste the text below between the \label and the bibliography.
+%
+% Written to stand on the results already in the thesis. If the three-seed
+% comparison of the two centre-update rules completes, add the marked
+% paragraph; if it does not, the section is complete without it.
+% =========================================================================
+
+\unnumberedsection{Conclusions}
+\label{chap:conclusions}
+
+This work set out to recognise six categories of indoor scene with a
+transformer trained from scratch, to add a clustering objective to the
+embedding space, to exploit unlabelled images through self-labelling, and to
+analyse the outcome with classification metrics and representation-space
+measurements. Each of the four was carried out, and the results are more
+informative about the interaction between them than about any one in isolation.
+
+The clearest result is that the choice of feature extractor dominated
+everything else that was varied. A ResNet-18 of eleven million parameters
+reached \(81.83\) percent on the test partition where a ViT-S/16 of
+twenty-two million, trained on the same images under the same schedule for the
+same number of epochs, reached \(56.33\) percent. No auxiliary objective, no
+selection rule and no coefficient examined in this work moved accuracy by more
+than a few percentage points. On a dataset of nineteen thousand images, the
+inductive bias of the architecture is the decisive factor, and a transformer
+trained from scratch at this scale does not have enough data to compensate for
+lacking one.
+
+Center Loss did what its formulation promises, and the promise turned out to be
+narrower than expected. On MNIST, where the validation network already
+separates the classes and reaches \(98.39\) percent, adding the objective
+reduced the mean within-class distance from \(50.16\) to \(0.36\) and raised the
+ratio of between-class to within-class distance from \(4.76\) to \(20.76\); the
+two-dimensional embeddings show the tight, radially separated clusters reported
+in the original work. That result establishes that the implementation is
+correct, which is the necessary precondition for interpreting anything that
+follows.
+
+On the room dataset the same objective contracted the representation just as
+decisively and organised it not at all. The mean within-class distance fell from
+\(8.203\) to \(3.814\) for the transformer, a reduction of fifty-four percent --
+and the mean distance between class centroids fell from \(7.907\) to \(3.389\),
+a reduction of fifty-seven percent. Because both quantities shrank in the same
+proportion, the scale-invariant measures did not improve: the separation ratio
+fell from \(0.964\) to \(0.888\) and the silhouette coefficient from \(0.036\) to
+\(0.026\). The convolutional model, whose separation ratio already exceeded one,
+responded in the opposite direction, its ratio rising from \(1.465\) to
+\(1.606\). Contraction and separation are therefore not the same thing, and an
+objective that produces the first does not necessarily produce the second.
+
+The pattern across the three settings suggests that the geometric consequence of
+Center Loss depends on the structure already present in the representation it is
+applied to. Where the classes are distinct, pulling samples towards their
+centres tightens clusters that are already apart. Where the classes overlap in
+the feature space, as six indoor scene categories with shared objects and shared
+layouts largely do, the same force contracts signal and noise alike. This is
+offered as an interpretation consistent with three observations, not as a
+demonstration; separating it from the alternative explanations would require
+varying the representation quality deliberately rather than observing it across
+architectures that differ in other ways as well.
+
+The self-labelling experiments did not harm performance and did not clearly
+improve it. The best configuration exceeded the supervised baseline by
+\(1.17\) percentage points, which is seven images out of six hundred and below
+the resolution of a single comparison. What was consistent across every
+configuration and both partitions was the influence of the checkpoint the
+procedure started from: runs warm-started from the Cross-Entropy model
+outperformed those warm-started from the Center Loss model in every case. Self-
+training amplifies the representation it begins with rather than repairing it,
+which is the same conclusion the geometric measurements reach by another route.
+
+One methodological result deserves to be stated on its own. Two runs of an
+identical configuration, differing only in the order in which images were
+presented and in the hardware used, produced test accuracies \(3.50\) percentage
+points apart. That is larger than any difference this work attributes to a
+method. It is the reason the conclusions above rest on representation geometry,
+which is measured over six hundred embeddings and admits interval estimates,
+rather than on accuracy, which on a test set of this size cannot resolve the
+effects in question.
+
+% ---------------------------------------------------------------------
+% ADD ONLY IF THE THREE-SEED COMPARISON COMPLETES.
+% Replace the bracketed values with the measured ones.
+% ---------------------------------------------------------------------
+% A final observation concerns the update rule itself. The variant used
+% throughout this work treats the class centres as parameters of the combined
+% objective, so the coefficient \(\lambda_{\mathrm{C}}\) scales their gradient;
+% the rule published by Wen et al. moves them with a dedicated rate,
+% independent of that coefficient. The two are not interchangeable in practice.
+% Under the variant used here the centres remained close to their random
+% initialisation, their mean norm moving from \(1.96\) to \(2.00\) over fifty
+% epochs while the embeddings they were pulling towards had a scale four times
+% larger; their cosine alignment with the true class centroids reached
+% \(0.78\). Under the published rule the centres tracked the centroids almost
+% exactly, with an alignment of \(0.997\) and a norm of \(14.3\). The
+% contraction reported above is therefore best understood as motion towards
+% points that never became class prototypes.
+% ---------------------------------------------------------------------
+
+Three directions follow from these results. The first is to establish how much
+of what has been measured survives repetition: every configuration reported here
+was trained once, and the run-to-run variation quantified above is large enough
+that the smaller effects should be treated as descriptions of particular runs
+until they are reproduced across several seeds. The second is to separate the
+weight of the representation term from the rate at which the class centres move,
+which the implementation used here couples and which the coefficient sweep
+therefore cannot disentangle. The third is to test the interpretation offered
+above directly, by applying the same objective to representations of
+deliberately varied quality on a single architecture, rather than inferring it
+from architectures that differ in several respects at once.
